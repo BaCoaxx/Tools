@@ -2,7 +2,7 @@
 #include <EditConstants.au3>
 #include <MsgBoxConstants.au3>
 
-$gui = GUICreate("Waypoint Saver", 350, 300)
+$gui = GUICreate("Waypoint Saver", 450, 300)
 GUICtrlCreateLabel("Waypoint:", 10, 10, 60, 20)
 
 ; Title
@@ -11,19 +11,23 @@ $inputTitle = GUICtrlCreateInput("", 10, 60, 100, 20)
 
 ; X
 GUICtrlCreateLabel("X", 120, 40, 50, 20)
-$inputX = GUICtrlCreateInput("", 120, 60, 100, 20)
+$inputX = GUICtrlCreateInput("", 120, 60, 70, 20)
 
 ; Y
-GUICtrlCreateLabel("Y", 230, 40, 50, 20)
-$inputY = GUICtrlCreateInput("", 230, 60, 100, 20)
+GUICtrlCreateLabel("Y", 200, 40, 50, 20)
+$inputY = GUICtrlCreateInput("", 200, 60, 70, 20)
+
+; Comments
+GUICtrlCreateLabel("Comments", 280, 40, 70, 20)
+$inputComments = GUICtrlCreateInput("", 280, 60, 120, 20)
 
 ; Output Box
 GUICtrlCreateLabel("Output", 10, 90, 50, 20)
-$outputBox = GUICtrlCreateEdit("", 10, 110, 320, 100, $ES_READONLY)
+$outputBox = GUICtrlCreateEdit("", 10, 110, 420, 100, $ES_READONLY)
 
 ; Buttons
-$btnSave = GUICtrlCreateButton("Save Output", 10, 220, 150, 30)
-$btnAdd = GUICtrlCreateButton("Add X/Y", 180, 220, 150, 30)
+$btnSave = GUICtrlCreateButton("Save Output", 10, 220, 200, 30)
+$btnAdd = GUICtrlCreateButton("Add Waypoint", 230, 220, 200, 30)
 
 GUISetState(@SW_SHOW)
 
@@ -35,12 +39,17 @@ While 1
         Case $btnAdd
             $x = GUICtrlRead($inputX)
             $y = GUICtrlRead($inputY)
+            $comments = GUICtrlRead($inputComments)
             If $x <> "" And $y <> "" Then
-                ; Add to output box
-                GUICtrlSetData($outputBox, GUICtrlRead($outputBox) & $x & " " & $y & @CRLF)
-                ; Clear X and Y input boxes
+                $outputLine = $x & ", " & $y
+                If $comments <> "" Then
+                    $outputLine &= " ;~ " & $comments
+                EndIf
+                GUICtrlSetData($outputBox, GUICtrlRead($outputBox) & $outputLine & @CRLF)
+                ; Clear X, Y, and Comments input boxes
                 GUICtrlSetData($inputX, "")
                 GUICtrlSetData($inputY, "")
+                GUICtrlSetData($inputComments, "")
             Else
                 MsgBox($MB_ICONWARNING, "Warning", "Enter both X and Y values.")
             EndIf
@@ -55,6 +64,7 @@ While 1
                 GUICtrlSetData($inputTitle, "")
                 GUICtrlSetData($inputX, "")
                 GUICtrlSetData($inputY, "")
+                GUICtrlSetData($inputComments, "")
             Else
                 MsgBox($MB_ICONWARNING, "Warning", "Enter a title and make sure there is output to save.")
             EndIf
