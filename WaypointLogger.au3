@@ -1,6 +1,7 @@
 #include <GUIConstantsEx.au3>
 #include <EditConstants.au3>
 #include <MsgBoxConstants.au3>
+#include <WindowsConstants.au3>
 
 $gui = GUICreate("Waypoint Saver", 450, 300)
 GUICtrlCreateLabel("Waypoint:", 10, 10, 60, 20)
