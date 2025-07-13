@@ -26,8 +26,8 @@ GUICtrlCreateLabel("Output", 10, 90, 50, 20)
 $outputBox = GUICtrlCreateEdit("", 10, 110, 420, 100, $ES_READONLY)
 
 ; Buttons
-$btnSave = GUICtrlCreateButton("Save Output", 10, 220, 200, 30)
-$btnAdd = GUICtrlCreateButton("Add Waypoint", 230, 220, 200, 30)
+$btnSave = GUICtrlCreateButton("Save Output", 230, 220, 200, 30)
+$btnAdd = GUICtrlCreateButton("Add Waypoint", 10, 220, 200, 30)
 
 GUISetState(@SW_SHOW)
 
@@ -41,15 +41,19 @@ While 1
             $y = GUICtrlRead($inputY)
             $comments = GUICtrlRead($inputComments)
             If $x <> "" And $y <> "" Then
-                $outputLine = $x & ", " & $y
-                If $comments <> "" Then
-                    $outputLine &= " ;~ " & $comments
+                If StringIsInt($x) And StringIsInt($y) Then
+                    $outputLine = $x & ", " & $y
+                    If $comments <> "" Then
+                        $outputLine &= " ;~ " & $comments
+                    EndIf
+                    GUICtrlSetData($outputBox, GUICtrlRead($outputBox) & $outputLine & @CRLF)
+                    ; Clear X, Y, and Comments input boxes
+                    GUICtrlSetData($inputX, "")
+                    GUICtrlSetData($inputY, "")
+                    GUICtrlSetData($inputComments, "")
+                Else
+                    MsgBox($MB_ICONWARNING, "Warning", "Only numbers are allowed for X and Y.")
                 EndIf
-                GUICtrlSetData($outputBox, GUICtrlRead($outputBox) & $outputLine & @CRLF)
-                ; Clear X, Y, and Comments input boxes
-                GUICtrlSetData($inputX, "")
-                GUICtrlSetData($inputY, "")
-                GUICtrlSetData($inputComments, "")
             Else
                 MsgBox($MB_ICONWARNING, "Warning", "Enter both X and Y values.")
             EndIf
