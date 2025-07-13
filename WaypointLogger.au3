@@ -23,7 +23,7 @@ $inputComments = GUICtrlCreateInput("", 280, 60, 120, 20)
 
 ; Output Box
 GUICtrlCreateLabel("Output", 10, 90, 50, 20)
-$outputBox = GUICtrlCreateEdit("", 10, 110, 420, 100, $ES_READONLY)
+$outputBox = GUICtrlCreateEdit("", 10, 110, 420, 100, $ES_READONLY + $ES_AUTOVSCROLL + $WS_VSCROLL)
 
 ; Buttons
 $btnSave = GUICtrlCreateButton("Save Output", 230, 220, 200, 30)
