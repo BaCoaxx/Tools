@@ -58,7 +58,7 @@ While 1
             $title = GUICtrlRead($inputTitle)
             $data = GUICtrlRead($outputBox)
             If $title <> "" And $data <> "" Then
-                FileWrite(@ScriptDir & "\" & $title & ".txt", $data)
+                FileWrite(@ScriptDir & "\WaypointLogs\" & $title & ".txt", $data)
                 MsgBox($MB_ICONINFORMATION, "Saved", "Output saved as " & $title & ".txt")
                 ; Clear all input boxes
                 GUICtrlSetData($inputTitle, "")
