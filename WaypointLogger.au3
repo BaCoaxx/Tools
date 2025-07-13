@@ -65,6 +65,7 @@ While 1
                 GUICtrlSetData($inputX, "")
                 GUICtrlSetData($inputY, "")
                 GUICtrlSetData($inputComments, "")
+                GUICtrlSetData($outputBox, "")
             Else
                 MsgBox($MB_ICONWARNING, "Warning", "Enter a title and make sure there is output to save.")
             EndIf
