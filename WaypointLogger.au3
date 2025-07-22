@@ -81,3 +81,8 @@ Func HelloWorld()
     MsgBox($MB_OK, "Hello", "Hello, World!")
     Return
 EndFunc
+
+Func FunctionName($Param)
+    
+    Return True
+EndFunc
