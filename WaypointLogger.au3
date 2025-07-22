@@ -76,3 +76,18 @@ While 1
             EndIf
     EndSwitch
 WEnd
+
+Func HelloWorld()
+    MsgBox($MB_OK, "Hello", "Hello, World!")
+    Return
+EndFunc
+
+Func FunctionName($Param)
+    
+    Return True
+EndFunc
+
+Func FunkyMan()
+    MsgBox($MB_OK, "Funky", "This is a funky function!")
+    Return
+EndFunc
