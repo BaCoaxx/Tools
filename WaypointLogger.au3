@@ -76,3 +76,8 @@ While 1
             EndIf
     EndSwitch
 WEnd
+
+Func HelloWorld()
+    MsgBox($MB_OK, "Hello", "Hello, World!")
+    Return
+EndFunc
