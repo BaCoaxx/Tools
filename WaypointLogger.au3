@@ -86,3 +86,8 @@ Func FunctionName($Param)
     
     Return True
 EndFunc
+
+Func FunkyMan()
+    MsgBox($MB_OK, "Funky", "This is a funky function!")
+    Return
+EndFunc
