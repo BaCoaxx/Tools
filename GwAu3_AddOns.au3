@@ -3038,7 +3038,7 @@ Func GetLuxonTitle()
 		Return 11
 	Else
 		Return 12
-	End If
+	EndIf
 EndFunc ;==> GetLuxonTitle
 #EndRegion
 
