@@ -16,6 +16,15 @@ Opt("GUIOnEventMode", True)
 Opt("GUICloseOnESC", False)
 Opt("ExpandVarStrings", 1)
 
+; === PERFORMANCE CONFIGURATION ===
+Global Const $MOVEMENT_RANGE = 150
+Global Const $DEATH_CHECK_INTERVAL = 250
+Global Const $SPIRIT_CAST_DELAY = 1500
+Global Const $DEADLOCK_TIMEOUT = 600000 ; 10 minutes
+
+; Performance macro
+#define CHECK_PARTY_DEAD() If GetPartyDead() Then Return
+
 #Region Declarations
 Global $charName  = ""
 Global $ProcessID = ""
@@ -39,7 +48,7 @@ Next
 #include "Gui.au3"
 
 While Not $BotRunning
-	Sleep(100)
+    Sleep(100)
 WEnd
 
 While True
@@ -61,7 +70,7 @@ Func MainFarm()
             Out("Bot Paused")
             GUICtrlSetState($Button, $GUI_ENABLE)
             GUICtrlSetData($Button, "Resume")
-			GUICtrlSetFont(-1, 10, 400, 0, "Times New Roman")
+            GUICtrlSetFont(-1, 10, 400, 0, "Times New Roman")
             Return
         EndIf
 
@@ -286,7 +295,7 @@ EndFunc
 
 Func FarmMountQinkai()
 
-    If GetPartyDead() Then Return
+    CHECK_PARTY_DEAD()
     GetBlessing()
     $RezShrine = 1
     
@@ -350,55 +359,62 @@ Func GetBlessing()
 EndFunc ;==> GetBlessing
 
 Func DonateDemPoints()
-    Local $StartTime = TimerInit() ; Start the deadlock timer
-
+    Local $StartTime = TimerInit()
+    
     Out("Travel to Cavalon - Donating Points")
     RndTravel($Town_ID_Cavalon)
     Sleep(2000)
     $inventorytrigger = 1
 
-    Out("Go to Luxon Scavanger")
+    Out("Go to Luxon Scavenger")
+    NavigateToLuxonScavenger()
+    
+    Local $isDonating = (GUICtrlRead($DonateBox) = $GUI_CHECKED)
+    Out($isDonating ? "Donate the Points" : "Buy Jadeite Shards")
+
+    While GetLuxonFaction() >= 5000
+        If TimerDiff($StartTime) > $DEADLOCK_TIMEOUT Then
+            Out("Deadlock detected in DonateDemPoints - Exiting to restart...")
+            Return
+        EndIf
+
+        ProcessLuxonFaction($isDonating)
+    WEnd
+
+    UpdateLuxonStats()
+EndFunc   ;==> DonateDemPoints
+
+Func NavigateToLuxonScavenger()
     If CheckAreaRange(5439.88, 1441.83, 500) Then
         MoveTo(5378.04, 1093.01)
         MoveTo(7561.78, -1139.63)
     EndIf
     MoveTo(9050.54, -1120.91, 0)
-
+    
     Local $NPC = GetNearestNPCToAgent(-2, 1320, $GC_I_AGENT_TYPE_LIVING, 1, "NPCFilter")
     Agent_GoNPC($NPC)
     Sleep(1000)
+EndFunc
 
-    If GUICtrlRead($DonateBox) = $GUI_CHECKED Then
-        Out("Donate the Points")
+Func ProcessLuxonFaction($isDonating)
+    If $isDonating Then
+        Ui_Dialog(0x87)
+        Sleep(1000)
+        Game_DonateFaction("luxon")
+        Sleep(1000)
     Else
-        Out("Buy Jadeite Shards")
+        Ui_Dialog(0x84)
+        Sleep(1000)
+        Ui_Dialog(0x800101)
+        Sleep(1000)
     EndIf
+EndFunc
 
-    While GetLuxonFaction() >= 5000
-        ; Deadlock check inside the loop
-        If TimerDiff($StartTime) > 600000 Then ; 10 minutes
-            Out("Deadlock detected in DonateDemPoints - Exiting to restart...")
-            Return ; Exit so main loop can restart it
-        EndIf
-
-        If GUICtrlRead($DonateBox) = $GUI_CHECKED Then
-            Ui_Dialog(0x87)
-            Sleep(1000)
-            Game_DonateFaction("luxon")
-            Sleep(1000)
-        Else
-            Ui_Dialog(0x84)
-            Sleep(1000)
-            Ui_Dialog(0x800101)
-            Sleep(1000)
-        EndIf
-    WEnd
-
+Func UpdateLuxonStats()
     $LuxonPointsGained = GetLuxonTitlePoints() - $LuxonPointsStart
     $LuxonTitle = GetLuxonTitle()
-
     UpdateStatistics()
-EndFunc   ;==> DonateDemPoints
+EndFunc
 
 Func UseRunEnhancers()
     If GUICtrlRead($PconsBox) = $GUI_CHECKED Then
@@ -409,187 +425,281 @@ Func UseRunEnhancers()
     EndIf
 EndFunc ;==> UseRunEnhancers
 
-Func FarmToSecondShrine()
-    If Not GetPartyDead() then Out("Kill some Yetis")
-    AggroMoveToEx(-11345.94, -9236.53, 150)
-    AggroMoveToEx(-13374.57, -8792.12, 150)
-    AggroMoveToEx(-15136.31, -8014.83, 150)
+; Optimized waypoint execution function
+Func ExecuteWaypoints($waypoints, $description = "")
+    If $description <> "" Then Out($description)
+    
+    For $i = 0 To UBound($waypoints) - 1
+        CHECK_PARTY_DEAD()
+        AggroMoveToEx($waypoints[$i][0], $waypoints[$i][1], $MOVEMENT_RANGE)
+    Next
+EndFunc
 
-    If Not GetPartyDead() then Out("Kill the Ranger Boss")
-    AggroMoveToEx(-17681.92, -10434.07, 150)
+; Optimized spirit precasting
+Func PrecastSpirits()
+    If GetPartyDead() Or GUICtrlRead($Builds) <> $GUI_CHECKED Then Return
+    
+    Local $spirits[8][3] = [ _
+        [$sos, -2, 0], _
+        [2, 5, -2], _
+        [$pain, -2, 0], _
+        [3, 5, -2], _
+        [$bs, -2, 0], _
+        [4, 5, -2], _
+        [$vamp, -2, 0], _
+        [3, 7, Party_GetMyPartyHeroInfo(4, "AgentID")] _
+    ]
+    
+    Out("Precast Defensive Spirits if possible")
+    For $i = 0 To 7
+        CHECK_PARTY_DEAD()
+        
+        If $spirits[$i][2] = 0 Then ; Player skill
+            If IsRecharged($spirits[$i][0]) Then
+                UseSkillEx($spirits[$i][0], $spirits[$i][1])
+                Sleep($SPIRIT_CAST_DELAY)
+            EndIf
+        ElseIf $spirits[$i][2] = -2 Then ; Hero skill on player
+            If Skill_GetSkillbarInfo($spirits[$i][0], "IsRecharged", $spirits[$i][1]) Then
+                Skill_UseHeroSkill($spirits[$i][1], $spirits[$i][0], $spirits[$i][2])
+                Sleep($SPIRIT_CAST_DELAY)
+            EndIf
+        Else ; Hero skill on specific target
+            If Skill_GetSkillbarInfo($spirits[$i][0], "IsRecharged", $spirits[$i][1]) Then
+                Skill_UseHeroSkill($spirits[$i][1], $spirits[$i][0], $spirits[$i][2])
+                Sleep($SPIRIT_CAST_DELAY)
+            EndIf
+        EndIf
+    Next
+EndFunc
 
-    If Not GetPartyDead() then Out("Kill Rot Wallow")
-    AggroMoveToEx(-15480.86, -8330.52, 150)
-    AggroMoveToEx(-13927.14, -5273.81, 150)
-    AggroMoveToEx(-11642.35, -3830.33, 150)
-
-    If Not GetPartyDead() then Out("Kill the Ritualist Boss")
-    AggroMoveToEx(-12145.45, -3141.13, 150)
-    If Not GetPartyDead() and GUICtrlRead($Builds) = $GUI_CHECKED Then
-        If Not GetPartyDead() then Out("Precast Defensive Spirits if possible")
-        If Not GetPartyDead() and IsRecharged($sos) then UseSkillEx($sos, -2) 
-        If Not GetPartyDead() and Skill_GetSkillbarInfo(2, "IsRecharged" ,5) Then Skill_UseHeroSkill(5,2,-2)
-        If Not GetPartyDead() and IsRecharged($pain) then UseSkillEx($pain, -2)     
-        If Not GetPartyDead() then Sleep(1500)
-        If Not GetPartyDead() and Skill_GetSkillbarInfo(3, "IsRecharged" ,5) Then Skill_UseHeroSkill(5,3,-2)
-        If Not GetPartyDead() then Sleep(1500)
-        If Not GetPartyDead() and IsRecharged($bs) then UseSkillEx($bs, -2) 
-        If Not GetPartyDead() and Skill_GetSkillbarInfo(4, "IsRecharged" ,5) Then Skill_UseHeroSkill(5,4,-2)
-        If Not GetPartyDead() and IsRecharged($vamp) then UseSkillEx($vamp, -2) 
-        If Not GetPartyDead() and Skill_GetSkillbarInfo(3, "IsRecharged" ,7) then Skill_UseHeroSkill(7,3,Party_GetMyPartyHeroInfo(4, "AgentID"))
-    EndIf
-    If Not GetPartyDead() then Party_CommandHero(4, -13947.86, -2250.88)
-    If Not GetPartyDead() then Sleep(6000)
-    If Not GetPartyDead() then Party_CancelHero(4)
-    AggroMoveToEx(-14437.85, -2362.25, 150)
-    AggroMoveToEx(-13967.48, -1656.00, 150)
-
-    If Not GetPartyDead() then Out("Oni Spawn Point")
-    AggroMoveToEx(-11999.42, -4100.08, 150)
-    AggroMoveToEx(-11014.63, -6204.00, 150)
-
-    If Not GetPartyDead() then Out("Kill Rot Wallow")
-    AggroMoveToEx(-8446.23, -5402.07, 150)
-    AggroMoveToEx(-6917.16, -4646.15, 150)
-    AggroMoveToEx(-5230.77, -4663.20, 150)
-    AggroMoveToEx(-7164.92, -7365.83, 150)
-    AggroMoveToEx(-3134.56, -7523.34, 150)
-    AggroMoveToEx(97.45, -9296.17, 150)
-
-    If Not GetPartyDead() then Out("Oni Spawn Point")
-    AggroMoveToEx(2102.55, -8464.81, 150)
-    AggroMoveToEx(4912.55, -7074.77, 150)
-    AggroMoveToEx(6431.07, -8751.93, 150)
-
-    If Not GetPartyDead() then Out("Kill Rot Wallow")
-    AggroMoveToEx(5095.10, -6959.62, 150)
-    AggroMoveToEx(5656.60, -3676.80, 150)
-    AggroMoveToEx(6753.56, 222.45, 150)
-    AggroMoveToEx(3763.82, 1040.80, 150)
-    AggroMoveToEx(1708.60, 1520.75, 150)
-    AggroMoveToEx(561.35, 591.78, 150)
-
-    If Not GetPartyDead() then Out("Move To Shrine")
-    AggroMoveToEx(-477.48, -1325.30, 150)
-    If Not GetPartyDead() then Sleep(3000)
-
+; Death handling function
+Func HandleDeath($shrineNumber)
     If GetPartyDead() Then
-        If GetPartyDefeated() Then Return 
-        Out("Damn son, you are a disappointment")
-        Out("Restart from the first Shrine")      
+        If GetPartyDefeated() Then Return
+        
+        Local $messages[5] = [ _
+            "Damn son, you are a disappointment", _
+            "Seriously? Disgraceful!!!", _
+            "This is somewhat embarrassing!", _
+            "Boy oh boy ...", _
+            "" _
+        ]
+        
+        Local $ordinals[5] = ["first", "second", "third", "fourth", "fifth"]
+        
+        Out($messages[$shrineNumber - 1])
+        Out("Restart from the " & $ordinals[$shrineNumber - 1] & " Shrine")
+        
         Do
-            Sleep(250)
+            Sleep($DEATH_CHECK_INTERVAL)
         Until GetPartyDead() = False
     Else
-        $RezShrine = 2
+        $RezShrine = $shrineNumber
     EndIf
+EndFunc
+
+Func FarmToSecondShrine()
+    Local $yetiWaypoints[3][2] = [ _
+        [-11345.94, -9236.53], _
+        [-13374.57, -8792.12], _
+        [-15136.31, -8014.83] _
+    ]
+    
+    Local $rangerBossWaypoints[1][2] = [[-17681.92, -10434.07]]
+    
+    Local $rotWallowWaypoints[3][2] = [ _
+        [-15480.86, -8330.52], _
+        [-13927.14, -5273.81], _
+        [-11642.35, -3830.33] _
+    ]
+    
+    Local $ritualistWaypoints[2][2] = [ _
+        [-12145.45, -3141.13], _
+        [-14437.85, -2362.25] _
+    ]
+    
+    Local $oniSpawnWaypoints[2][2] = [ _
+        [-11999.42, -4100.08], _
+        [-11014.63, -6204.00] _
+    ]
+    
+    Local $midRotWallowWaypoints[5][2] = [ _
+        [-8446.23, -5402.07], _
+        [-6917.16, -4646.15], _
+        [-5230.77, -4663.20], _
+        [-7164.92, -7365.83], _
+        [-3134.56, -7523.34] _
+    ]
+    
+    Local $endSection1Waypoints[3][2] = [ _
+        [97.45, -9296.17], _
+        [2102.55, -8464.81], _
+        [4912.55, -7074.77] _
+    ]
+    
+    Local $endSection2Waypoints[6][2] = [ _
+        [6431.07, -8751.93], _
+        [5095.10, -6959.62], _
+        [5656.60, -3676.80], _
+        [6753.56, 222.45], _
+        [3763.82, 1040.80], _
+        [1708.60, 1520.75] _
+    ]
+    
+    Local $shrineWaypoints[2][2] = [ _
+        [561.35, 591.78], _
+        [-477.48, -1325.30] _
+    ]
+
+    ExecuteWaypoints($yetiWaypoints, "Kill some Yetis")
+    ExecuteWaypoints($rangerBossWaypoints, "Kill the Ranger Boss")
+    ExecuteWaypoints($rotWallowWaypoints, "Kill Rot Wallow")
+    
+    Out("Kill the Ritualist Boss")
+    CHECK_PARTY_DEAD()
+    AggroMoveToEx($ritualistWaypoints[0][0], $ritualistWaypoints[0][1], $MOVEMENT_RANGE)
+    PrecastSpirits()
+    
+    CHECK_PARTY_DEAD()
+    Party_CommandHero(4, -13947.86, -2250.88)
+    Sleep(6000)
+    Party_CancelHero(4)
+    AggroMoveToEx($ritualistWaypoints[1][0], $ritualistWaypoints[1][1], $MOVEMENT_RANGE)
+    CHECK_PARTY_DEAD()
+    AggroMoveToEx(-13967.48, -1656.00, $MOVEMENT_RANGE)
+
+    ExecuteWaypoints($oniSpawnWaypoints, "Oni Spawn Point")
+    ExecuteWaypoints($midRotWallowWaypoints, "Kill Rot Wallow")
+    ExecuteWaypoints($endSection1Waypoints, "")
+    ExecuteWaypoints($endSection2Waypoints, "Oni Spawn Point")
+    ExecuteWaypoints($shrineWaypoints, "Move To Shrine")
+    
+    CHECK_PARTY_DEAD()
+    Sleep(3000)
+
+    HandleDeath(2)
 EndFunc ;==> FarmToSecondShrine
 
 Func FarmToThirdShrine()
-    If Not GetPartyDead() then Out("Kill Nagas")
-    AggroMoveToEx(68.80, -2812.41, 150)
+    Local $nagaWaypoints[1][2] = [[68.80, -2812.41]]
+    
+    Local $rotWallowWaypoints[4][2] = [ _
+        [-1975.36, -2447.14], _
+        [-2743.20, -718.23], _
+        [-6319.35, -3363.90], _
+        [-8786.40, 252.08] _
+    ]
+    
+    Local $yetiCaveWaypoints[2][2] = [ _
+        [-10728.21, 1438.67], _
+        [-10846.09, 5862.79] _
+    ]
+    
+    Local $monkBossWaypoints[1][2] = [[-8582.28, 8468.58]]
+    
+    Local $yetiAfterCaveWaypoints[5][2] = [ _
+        [-6679.04, 7025.30], _
+        [-4679.15, 7633.20], _
+        [-2548.89, 8731.90], _
+        [-4619.15, 6394.57], _
+        [-5406.97, 3420.06] _
+    ]
+    
+    Local $shrineWaypoints[3][2] = [ _
+        [-6323.47, 622.15], _
+        [-2498.45, 1072.42], _
+        [30.04, 960.86] _
+    ]
 
-    If Not GetPartyDead() then Out("Kill Rot Wallow")
-    AggroMoveToEx(-1975.36, -2447.14, 150)
-    AggroMoveToEx(-2743.20, -718.23, 150)
-    AggroMoveToEx(-6319.35, -3363.90, 150)
-    AggroMoveToEx(-8786.40, 252.08, 150)
+    ExecuteWaypoints($nagaWaypoints, "Kill Nagas")
+    ExecuteWaypoints($rotWallowWaypoints, "Kill Rot Wallow")
+    ExecuteWaypoints($yetiCaveWaypoints, "Kill Yetis before cave")
+    ExecuteWaypoints($monkBossWaypoints, "Kill the Monk Boss")
+    ExecuteWaypoints($yetiAfterCaveWaypoints, "Kill Yetis after cave")
+    ExecuteWaypoints($shrineWaypoints, "Move close to the same Shrine as before")
 
-    If Not GetPartyDead() then Out("Kill Yetis before cave")
-    AggroMoveToEx(-10728.21, 1438.67, 150)
-    AggroMoveToEx(-10846.09, 5862.79, 150)
-
-    If Not GetPartyDead() then Out("Kill the Monk Boss")
-    AggroMoveToEx(-8582.28, 8468.58, 150)
-
-    If Not GetPartyDead() then Out("Kill Yetis after cave")
-    AggroMoveToEx(-6679.04, 7025.30, 150)
-    AggroMoveToEx(-4679.15, 7633.20, 150)
-    AggroMoveToEx(-2548.89, 8731.90, 150)
-    AggroMoveToEx(-4619.15, 6394.57, 150)
-    AggroMoveToEx(-5406.97, 3420.06, 150)
-
-    If Not GetPartyDead() then Out("Move close to the same Shrine as before")
-    AggroMoveToEx(-6323.47, 622.15, 150)
-    AggroMoveToEx(-2498.45, 1072.42, 150)
-    AggroMoveToEx(30.04, 960.86, 150)
-
-    If GetPartyDead() Then
-        If GetPartyDefeated() Then Return  
-        Out("Seriously? Disgraceful!!!")
-        Out("Restart from the second Shrine")     
-        Do
-            Sleep(250)
-        Until GetPartyDead() = False
-    Else
-        $RezShrine = 3
-    EndIf
+    HandleDeath(3)
 EndFunc ;==> FarmToThirdShrine
 
 Func FarmToFourthShrine()
-    If Not GetPartyDead() then Out("Kill Rot Wallow")
-    AggroMoveToEx(1967.51, 3169.33, 150)
-    AggroMoveToEx(4816.43, 5845.84, 150)
-    AggroMoveToEx(6774.16, 7644.99, 150)
+    Local $rotWallowWaypoints[3][2] = [ _
+        [1967.51, 3169.33], _
+        [4816.43, 5845.84], _
+        [6774.16, 7644.99] _
+    ]
+    
+    Local $nagaWaypoints[3][2] = [ _
+        [8587.53, 6622.35], _
+        [10557.92, 6783.90], _
+        [10919.80, 9021.05] _
+    ]
+    
+    Local $shrineWaypoints[2][2] = [ _
+        [13768.36, 7637.01], _
+        [14666.68, 9607.33] _
+    ]
 
-    If Not GetPartyDead() then Out("Kill Nagas")
-    AggroMoveToEx(8587.53, 6622.35, 150)
-    AggroMoveToEx(10557.92, 6783.90, 150)
-    AggroMoveToEx(10919.80, 9021.05, 150)
+    ExecuteWaypoints($rotWallowWaypoints, "Kill Rot Wallow")
+    ExecuteWaypoints($nagaWaypoints, "Kill Nagas")
+    ExecuteWaypoints($shrineWaypoints, "Move to Shrine")
+    
+    CHECK_PARTY_DEAD()
+    Sleep(3000)
 
-    If Not GetPartyDead() then Out("Move to Shrine")
-    AggroMoveToEx(13768.36, 7637.01, 150)
-    AggroMoveToEx(14666.68, 9607.33, 150)
-    If Not GetPartyDead() then Sleep(3000)
-
-    If GetPartyDead() Then
-        If GetPartyDefeated() Then Return   
-        Out("This is somewhat embarrassing!")
-        Out("Restart from the third Shrine")    
-        Do
-            Sleep(250)
-        Until GetPartyDead() = False
-    Else
-        $RezShrine = 4
-    EndIf
+    HandleDeath(4)
 EndFunc ;==> FarmToFourthShrine
 
 Func FarmToEnd()
-    If Not GetPartyDead() then Out("Oni Spawn Point")
-    AggroMoveToEx(15533.14, 6853.51, 150)
-    AggroMoveToEx(15695.05, 4637.03, 150)
-    AggroMoveToEx(13542.48, 2297.27, 150)
+    Local $oniSpawnWaypoints[3][2] = [ _
+        [15533.14, 6853.51], _
+        [15695.05, 4637.03], _
+        [13542.48, 2297.27] _
+    ]
+    
+    Local $nagaWaypoints[3][2] = [ _
+        [13171.07, 39.77], _
+        [11701.90, -3727.37], _
+        [11770.87, -7040.32] _
+    ]
+    
+    Local $outcastWaypoints[2][2] = [ _
+        [14650.99, -9058.19], _
+        [14872.70, -5791.33] _
+    ]
+    
+    Local $cleanupWaypoints[8][2] = [ _
+        [11385.53, -7817.82], _
+        [7756.05, -7611.91], _
+        [5039.12, -7104.21], _
+        [5410.23, -3772.06], _
+        [1190.87, -1992.54], _
+        [2043.36, 1272.71], _
+        [6404.70, 766.38], _
+        [6089.76, -2339.20] _
+    ]
 
-    If Not GetPartyDead() then Out("Kill Nagas")
-    AggroMoveToEx(13171.07, 39.77, 150)
-    AggroMoveToEx(11701.90, -3727.37, 150)
-    AggroMoveToEx(11770.87, -7040.32, 150)
+    ExecuteWaypoints($oniSpawnWaypoints, "Oni Spawn Point")
+    ExecuteWaypoints($nagaWaypoints, "Kill Nagas")
+    
+    Out("Kill Outcasts")
+    For $i = 0 To UBound($outcastWaypoints) - 1
+        If World_GetWorldInfo("FoesToKill") > 0 Then
+            CHECK_PARTY_DEAD()
+            AggroMoveToEx($outcastWaypoints[$i][0], $outcastWaypoints[$i][1], $MOVEMENT_RANGE)
+        EndIf
+    Next
 
-    If Not GetPartyDead() then Out("Kill Outcasts")
-    If World_GetWorldInfo("FoesToKill") > 0 then AggroMoveToEx(14650.99, -9058.19, 150)
-    If World_GetWorldInfo("FoesToKill") > 0 then AggroMoveToEx(14872.70, -5791.33, 150)
-
-    If Not GetPartyDead() and World_GetWorldInfo("FoesToKill") > 0 Then
-        If Not GetPartyDead() then Out("Looks like we missed a patrol")
-        If Not GetPartyDead() then Out("!!!Go get them!!!")
-        If World_GetWorldInfo("FoesToKill") > 0 then AggroMoveToEx(11385.53, -7817.82, 150)
-        If World_GetWorldInfo("FoesToKill") > 0 then AggroMoveToEx(7756.05, -7611.91, 150)
-        If World_GetWorldInfo("FoesToKill") > 0 then AggroMoveToEx(5039.12, -7104.21, 150)
-        If World_GetWorldInfo("FoesToKill") > 0 then AggroMoveToEx(5410.23, -3772.06, 150)
-        If World_GetWorldInfo("FoesToKill") > 0 then AggroMoveToEx(1190.87, -1992.54, 150)
-        If World_GetWorldInfo("FoesToKill") > 0 then AggroMoveToEx(2043.36, 1272.71, 150)
-        If World_GetWorldInfo("FoesToKill") > 0 then AggroMoveToEx(6404.70, 766.38, 150)
-        If World_GetWorldInfo("FoesToKill") > 0 then AggroMoveToEx(6089.76, -2339.20, 150)       
-    EndIf  
-
-    If GetPartyDead() Then
-        If GetPartyDefeated() Then Return   
-        Out("Boy oh boy ... ")
-        Out("Restart from the fifth Shrine")    
-        Do
-            Sleep(250)
-        Until GetPartyDead() = False
-    Else
-        $RezShrine = 0
+    If World_GetWorldInfo("FoesToKill") > 0 Then
+        Out("Looks like we missed a patrol")
+        Out("!!!Go get them!!!")
+        For $i = 0 To UBound($cleanupWaypoints) - 1
+            If World_GetWorldInfo("FoesToKill") > 0 Then
+                CHECK_PARTY_DEAD()
+                AggroMoveToEx($cleanupWaypoints[$i][0], $cleanupWaypoints[$i][1], $MOVEMENT_RANGE)
+            EndIf
+        Next
     EndIf
+
+    HandleDeath(0)
 EndFunc ;==> FarmToEnd
