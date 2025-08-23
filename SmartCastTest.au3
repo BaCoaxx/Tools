@@ -142,6 +142,8 @@ Func SmartCast($aSkill, $aTarget = -2, $waitForRecharge = False)
         WEnd
     EndIf
 
+    ; If Im wanting to wait for the recharge, we need to definitely wait for the energy too otherwise its pointless and we could still fail the cast
+
     ; Check if the skill is recharged and then make sure we have enough energy needed to cast
     If Skill_GetSkillbarInfo($aSkill, "IsRecharged") Then
         If Agent_GetAgentInfo(-2, "CurrentEnergy") >= Skill_GetSkillInfo($aSkill, "EnergyCost") Then
