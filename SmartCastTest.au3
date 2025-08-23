@@ -132,27 +132,31 @@ While $BotRunning
     Sleep(1000)
 WEnd
 
-Func SmartCast($aSkill, $aTarget = -2, $waitForRecharge = False)
+Func SmartCast($aSkillSlot, $aTarget = -2, $waitForRecharge = False)
     If Agent_GetAgentInfo(-2, "IsDead") Then Return False ; We are dead, so we return
 
     ; If waitForRecharge is True, we wait until the skill is recharged
     If $waitForRecharge Then
-        While Not Skill_GetSkillbarInfo($aSkill, "IsRecharged")
-            Sleep(100)
+        While Not Skill_GetSkillbarInfo($aSkillSlot, "IsRecharged")
+            Sleep(32)
+        WEnd
+
+        ; Wait for enough energy too
+        While Agent_GetAgentInfo(-2, "CurrentEnergy") < Skill_GetSkillInfo(Skill_GetSkillBarInfo($aSkillSlot, "SkillID"), "EnergyCost")
+            Sleep(32)
         WEnd
     EndIf
 
-    ; If Im wanting to wait for the recharge, we need to definitely wait for the energy too otherwise its pointless and we could still fail the cast
-
     ; Check if the skill is recharged and then make sure we have enough energy needed to cast
-    If Skill_GetSkillbarInfo($aSkill, "IsRecharged") Then
-        If Agent_GetAgentInfo(-2, "CurrentEnergy") >= Skill_GetSkillInfo($aSkill, "EnergyCost") Then
-            Skill_UseSkill($aSkill, $aTarget)
+    If Skill_GetSkillbarInfo($aSkillSlot, "IsRecharged") Then
+        If Agent_GetAgentInfo(-2, "CurrentEnergy") >= Skill_GetSkillInfo(Skill_GetSkillBarInfo($aSkillSlot, "SkillID"), "EnergyCost") Then
+            Skill_UseSkill($aSkillSlot, $aTarget)
             
-            ; We wait until we are done casting before we 
+            ; We wait until we are done casting before we return
+            ; This is to avoid issues with trying to cast another skill while we are still casting
             Do
                 Sleep(32)
-            Until Not IsCasting($aSkill)
+            Until Not IsCasting($aSkillSlot)
         Else
             Return False ; Skill was recharged but we dont have enough energy to cast, so we return
         EndIf
@@ -164,8 +168,8 @@ EndFunc
 
 ; We check to see if we are currently casting a skill
 ; We check 3 different sources to be sure
-Func IsCasting($aSkill)
-    If Not Agent_GetAgentInfo(-2, "IsCasting") And Not Agent_GetAgentInfo(-2, "Skill") And Not Skill_GetSkillbarInfo($aSkill, "Casting") Then
+Func IsCasting($aSkillSlot)
+    If Not Agent_GetAgentInfo(-2, "IsCasting") And Not Agent_GetAgentInfo(-2, "Skill") And Not Skill_GetSkillbarInfo($aSkillSlot, "Casting") Then
         Return False
     Else 
         Return True
