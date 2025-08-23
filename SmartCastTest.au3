@@ -116,16 +116,16 @@ While Not $BotRunning
 WEnd
 
 While $BotRunning
-    Sleep(500)
-    Out("Ready")
+    ;Sleep(500)
+    ;Out("Ready")
     Sleep(250)
-    SmartCast(1, Agent_TargetNearestEnemy(), True) ; Cast skill 1 on enemy, wait for recharge if needed
-    SmartCast(2, -2, True) ; Cast skill 2 on self, wait for recharge if needed
-    SmartCast(4, Agent_TargetNearestEnemy(), True) ; Cast skill 4 on enemy
-    SmartCast(5, -2, True) ; Cast skill 4 on self
-    SmartCast(3, Agent_TargetNearestEnemy(), True) ; Cast skill 3 on enemy
+    SmartCast(1, Agent_TargetNearestEnemy()) ; Cast skill 1 on enemy, wait for recharge if needed
+    SmartCast(2, -2) ; Cast skill 2 on self, wait for recharge if needed
+    SmartCast(4, Agent_TargetNearestEnemy()) ; Cast skill 4 on enemy
+    SmartCast(5, -2) ; Cast skill 4 on self
+    SmartCast(3, Agent_TargetNearestEnemy()) ; Cast skill 3 on enemy
     Out("Done")
-    Sleep(5000)
+    Sleep(1000)
 WEnd
 
 Func SmartCast($aSkill, $aTarget = -2, $waitForRecharge = False)
