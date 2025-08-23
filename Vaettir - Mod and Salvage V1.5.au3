@@ -202,12 +202,6 @@ Global Const $SaveSettings      = GUICtrlCreateButton("Save Settings", 120, 105,
 								  GUICtrlSetOnEvent(-1, "inisavebutton")
 Global $StatusLabel = GUICtrlCreateEdit("", 8, 145, 217, 100, BitOR($ES_AUTOVSCROLL, $ES_AUTOHSCROLL, $ES_WANTRETURN, $WS_VSCROLL))
 
-Global $CurrSlotsLabel = GUICtrlCreateLabel("<Free Slots>", 12, 255, 60, 18) 
-Global $CurrInvSlotsLabel = GUICtrlCreateLabel("Inv:", 80, 255, 18, 18) 
-Global $CurrInvSlots = GUICtrlCreateLabel("-", 96, 255, 18, 18, $SS_RIGHT) 
-Global $CurrChestSlotsLabel = GUICtrlCreateLabel("Chest:", 130, 255, 30, 18)
-Global $CurrChestSlots = GUICtrlCreateLabel("-", 165, 255, 18, 18, $SS_RIGHT)
-
 GUICtrlCreateTabItem("Prof Mods")
 GUICtrlCreateGroup("Weapon Type", 5, 5, 150, 240)
 GUICtrlCreateGroup("Mod", 155, 5, 255, 240)
@@ -750,6 +744,7 @@ While True
 WEnd
 
 Func Main()
+
 	If GetMapID() <> $map_id_jaga_moraine Then RunThere()
 	
 	Local $lSuccess = CombatLoop()
@@ -881,8 +876,6 @@ Func RunThere()
 		
 		Out("Putting Mats into chest.")
 		PutMatsIntoChest()
-		DepositGold()
-		Sleep(1000)
 		Merch()
 		PutMatsIntoChest()
 		
@@ -898,9 +891,6 @@ Func RunThere()
 	UpdateMatCount()
 	$iron_count_old = GetItemQuantityInventory($model_id_iron_ingot)
 	$dust_count_old = GetItemQuantityInventory($model_id_dust)
-	
-	GUICtrlSetData($CurrInvSlots, CountFreeSlots())
-	GUICtrlSetData($CurrChestSlots, CountFreeSlotsStorage())
 	
 	LeaveGroup()
 	SwitchMode($hard_mode)
@@ -1059,7 +1049,7 @@ Func CombatLoop()
 	$StuffToSalvage = True
 	$IdKit = True
 	$SalvageKit = True
-	GUICtrlSetData($CurrInvSlots, CountFreeSlots())
+	
 	; Travel to Outpost and deal with full inventory, functionality is in RunThere()
 	If CountFreeSlots() <= 5 Then
 		If GetMapID() <> $map_id_longeyes_ledge Then
@@ -1844,6 +1834,7 @@ Func PutMatsIntoChest()
 		Out("You need to go to an Outpost.")
 		Return False
 	EndIf
+
 	Local $lItem, $lQuantity, $lModelID
 	For $i = 1 To 4
 		For $j = 1 To DllStructGetData(GetBag($i), 'slots')
@@ -1851,26 +1842,25 @@ Func PutMatsIntoChest()
 			If DllStructGetData($lItem, 'ID') = 0 Then ContinueLoop
 			$lModelID = DllStructGetData($lItem, 'ModelID')
 			$lQuantity = DllStructGetData($lItem, 'quantity')
-			If $lModelID = $model_id_iron_ingot And $lQuantity = 250 Then
+			If ($lModelID = $model_id_iron_ingot And $lQuantity = 250) Then
 				MoveItemToChest($lItem)
 				ContinueLoop
 			EndIf
-			If $lModelID = $model_id_dust And $lQuantity = 250 Then
+			If ($lModelID = $model_id_dust And $lQuantity = 250) Then
 				MoveItemToChest($lItem)
 				ContinueLoop
 			EndIf
-			If $lModelID = $model_id_bone And $lQuantity = 250 Then
+			If ($lModelID = $model_id_bone And $lQuantity = 250) Then
 				MoveItemToChest($lItem)
 				ContinueLoop
 			EndIf
-			If $lModelID = $model_id_Wood_Plank Then
+			If ($lModelID = $model_id_Wood_Plank) Then
 				SellItem($lItem, $lQuantity)
 				PingSleep(500)
 				ContinueLoop
 			EndIf
-			If $lModelID = $model_id_scale Then
-				SellItem($lItem, $lQuantity)
-				PingSleep(500)
+			If ($lModelID = $model_id_scale And $lQuantity = 250) Then
+				MoveItemToChest($lItem)
 				ContinueLoop
 			EndIf
 			If $lModelID = $model_id_tanned_hide_square Then
@@ -1883,9 +1873,8 @@ Func PutMatsIntoChest()
 				PingSleep(500)
 				ContinueLoop
 			EndIf
-			If $lModelID = $model_id_granite_slab Then
-				SellItem($lItem, $lQuantity)
-				PingSleep(500)
+			If ($lModelID = $model_id_granite_slab And $lQuantity = 250) Then
+				MoveItemToChest($lItem)
 				ContinueLoop
 			EndIf
 			If ($lModelID = $model_id_glacial_stone And $lQuantity = 250) And GUICtrlRead($cbx_glacial) = $GUI_CHECKED Then
