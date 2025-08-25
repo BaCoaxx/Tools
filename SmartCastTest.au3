@@ -19,6 +19,8 @@ $g_s_MainCharName  = ""
 
 #EndRegion Declaration
 
+Global $runningEnchants[3] = [1, 2, 3]  ; Array with 3 elements
+
 ; Process command line arguments
 For $i = 1 To $CmdLine[0]
     If $CmdLine[$i] = "-character" And $i < $CmdLine[0] Then
@@ -119,22 +121,18 @@ While $BotRunning
     ;Sleep(500)
     ;Out("Ready")
     Sleep(250)
-    If SmartCast(1, Agent_TargetNearestEnemy()) Then 
-        Out("Success")
-    Else
-        Out("Failed")
-    EndIf ; Cast skill 1 on enemy, wait for recharge if needed
-    SmartCast(2, -2) ; Cast skill 2 on self, wait for recharge if needed
-    SmartCast(4, Agent_TargetNearestEnemy(), True) ; Cast skill 4 on enemy
-    SmartCast(5, -2) ; Cast skill 4 on self
-    SmartCast(3, Agent_TargetNearestEnemy(), True) ; Cast skill 3 on enemy
-    Out("Debug")
+    MoveRunning(-6031, 400, $runningEnchants, 100)
+    MoveRunning(-7675, 3473, $runningEnchants, 100)
+    MoveRunning(-8506, 4314, $runningEnchants, 100)  ; Move to coords with upkeep skills and a range of 100
     Sleep(1000)
 WEnd
 
 Func SmartCast($aSkillSlot, $aTarget = -2, $waitForRecharge = False)
-    If Agent_GetAgentInfo(-2, "IsDead") Then Return False ; We are dead, so we return
+    Local $aSkill = Skill_GetSkillBarInfo($aSkillSlot, "SkillID")
 
+    ; Check for the smell of death to avoid casting skills from beyond the grave, return if dead
+    If Agent_GetAgentInfo(-2, "IsDead") Then Return False
+    
     ; If waitForRecharge is True, we wait until the skill is recharged
     If $waitForRecharge Then
         While Not Skill_GetSkillbarInfo($aSkillSlot, "IsRecharged")
@@ -142,14 +140,14 @@ Func SmartCast($aSkillSlot, $aTarget = -2, $waitForRecharge = False)
         WEnd
 
         ; Wait for enough energy too
-        While Agent_GetAgentInfo(-2, "CurrentEnergy") < Skill_GetSkillInfo(Skill_GetSkillBarInfo($aSkillSlot, "SkillID"), "EnergyCost")
+        While Agent_GetAgentInfo(-2, "CurrentEnergy") < Skill_GetSkillInfo($aSkill, "EnergyCost")
             Sleep(32)
         WEnd
     EndIf
 
     ; Check if the skill is recharged and then make sure we have enough energy needed to cast
     If Skill_GetSkillbarInfo($aSkillSlot, "IsRecharged") Then
-        If Agent_GetAgentInfo(-2, "CurrentEnergy") >= Skill_GetSkillInfo(Skill_GetSkillBarInfo($aSkillSlot, "SkillID"), "EnergyCost") Then
+        If Agent_GetAgentInfo(-2, "CurrentEnergy") >= Skill_GetSkillInfo($aSkill, "EnergyCost") Then
             Skill_UseSkill($aSkillSlot, $aTarget)
             
             ; We wait until we are done casting before we return
@@ -174,6 +172,28 @@ Func IsCasting($aSkillSlot)
     Else 
         Return True
     EndIf
+EndFunc
+
+Func MoveRunning($x, $y, $aUpkeepSkills, $Range = 100)
+    While ComputeDistance(Agent_GetAgentInfo(-2, "X"), Agent_GetAgentInfo(-2, "Y"), $x, $y) > $Range
+        Map_Move($x, $y)
+        Sleep(50)
+
+        For Local $i = 0 To UBound($aUpkeepSkills) - 1
+            Local $aSkill = Skill_GetSkillBarInfo($aUpkeepSkills[$i], "SkillID")
+            Local $hasEffect = Agent_GetAgentEffectInfo(-2, $aSkill, "HasEffect")
+            Local $timeRemaining = Agent_GetAgentEffectInfo(-2, $aSkill, "TimeRemaining")
+
+            If (Not $hasEffect) Or ($timeRemaining >= 0 And $timeRemaining <= 0.3) Then
+                SmartCast($aUpkeepSkills[$i], -2, True)
+            EndIf            
+        Next
+        Sleep(100)
+    WEnd
+EndFunc
+
+Func ComputeDistance($aX1, $aY1, $aX2, $aY2)
+	Return Sqrt(($aX1 - $aX2) ^ 2 + ($aY1 - $aY2) ^ 2)
 EndFunc
 
 Func Out($TEXT)
