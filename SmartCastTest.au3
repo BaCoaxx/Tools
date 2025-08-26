@@ -182,12 +182,11 @@ Func MoveRunning($x, $y, $aUpkeepSkills, $Range = 100)
             Local $hasEffect = Agent_GetAgentEffectInfo(-2, $aSkill, "HasEffect")
             Local $timeRemaining = Agent_GetAgentEffectInfo(-2, $aSkill, "TimeRemaining")
 
-            If (Not $hasEffect) Or ($timeRemaining >= 0 And $timeRemaining <= 0.3) Then
+            If (Not $hasEffect) Or ($timeRemaining >= 0 And $timeRemaining <= 0.5) Then
                 SmartCast($aUpkeepSkills[$i], -2, True)
             EndIf            
         Next
         Map_Move($x, $y)
-        Sleep(100)
     WEnd
 EndFunc
 
