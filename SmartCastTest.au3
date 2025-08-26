@@ -186,8 +186,8 @@ Func MoveRunning($x, $y, $aUpkeepSkills, $Range = 100)
 
             Out("Skill Slot: " & $aUpkeepSkills[$i] & " SkillID: " & $aSkill & " HasEffect: " & $hasEffect & " TimeRemaining: " & $timeRemaining)
 
-            If (Not $hasEffect) Or ($timeRemaining >= 0 And $timeRemaining <= 2000) Then
-                SmartCast($aUpkeepSkills[$i], -2, True)
+            If (Not $hasEffect) Or ($timeRemaining >= 0 And $timeRemaining <= $recastTime) Then
+                SmartCast($aUpkeepSkills[$i], -2)
             EndIf            
         Next
         Sleep(100)
