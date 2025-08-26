@@ -176,9 +176,7 @@ EndFunc
 
 Func MoveRunning($x, $y, $aUpkeepSkills, $Range = 100)
     While ComputeDistance(Agent_GetAgentInfo(-2, "X"), Agent_GetAgentInfo(-2, "Y"), $x, $y) > $Range
-        Map_Move($x, $y)
-        Sleep(50)
-
+        ; If the skills in the skillslots are not active, or they are about to expire then we recast them
         For Local $i = 0 To UBound($aUpkeepSkills) - 1
             Local $aSkill = Skill_GetSkillBarInfo($aUpkeepSkills[$i], "SkillID")
             Local $hasEffect = Agent_GetAgentEffectInfo(-2, $aSkill, "HasEffect")
@@ -188,6 +186,7 @@ Func MoveRunning($x, $y, $aUpkeepSkills, $Range = 100)
                 SmartCast($aUpkeepSkills[$i], -2, True)
             EndIf            
         Next
+        Map_Move($x, $y)
         Sleep(100)
     WEnd
 EndFunc
