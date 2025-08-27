@@ -182,7 +182,7 @@ Func MoveRunning($x, $y, $aUpkeepSkills, $Range = 100)
             Local $hasEffect = Agent_GetAgentEffectInfo(-2, $aSkill, "HasEffect")
             Local $skillDuration = Agent_GetAgentEffectInfo(-2, $aSkill, "Duration")
             Local $timeRemaining = Agent_GetAgentEffectInfo(-2, $aSkill, "TimeRemaining")
-            Local $recastTime = $skillDuration / 2
+            Local $recastTime = ($skillDuration * 1000) / 8
 
             Out("SkillID: " & $aSkill & " HasEffect: " & $hasEffect & " TimeRemaining: " & $timeRemaining & " RecastTime: " & $recastTime)
 
