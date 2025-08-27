@@ -184,9 +184,9 @@ Func MoveRunning($x, $y, $aUpkeepSkills, $Range = 100)
             Local $timeRemaining = Agent_GetAgentEffectInfo(-2, $aSkill, "TimeRemaining")
             Local $recastTime = $skillDuration / 2
 
-            Out("Skill Slot: " & $aUpkeepSkills[$i] & " SkillID: " & $aSkill & " HasEffect: " & $hasEffect & " TimeRemaining: " & $timeRemaining)
+            Out("SkillID: " & $aSkill & " HasEffect: " & $hasEffect & " TimeRemaining: " & $timeRemaining & " RecastTime: " & $recastTime)
 
-            If (Not $hasEffect) Or ($timeRemaining >= 0 And $timeRemaining <= $recastTime) Then
+            If Not $hasEffect Or $timeRemaining <= $recastTime Then
                 SmartCast($aUpkeepSkills[$i], -2)
             EndIf            
         Next
