@@ -210,21 +210,59 @@ Func MoveShadowStep($x, $y, $aUpkeepSkills, $Range = 100) ; ~~~ {{{TESTING PHASE
                 SmartCast($aUpkeepSkills[$i], -2)
             EndIf            
         Next
+
+        FindFurthestEnemyInArc(4) ; Assuming skill slot 3 is Shadow Step
+
         Sleep(100)
         Map_Move($x, $y)
     WEnd
 EndFunc
 
-Func Rotation()
-    While 1
-        Local $Rotation = Agent_GetAgentInfo(-2, "Rotation")
-        Local $RotCos = Agent_GetAgentInfo(-2, "RotationCos")
-        Local $RotSin = Agent_GetAgentInfo(-2, "RotationSin")
-        Out("Rotation: " & $Rotation)
-        Out("RotCos: " & $RotCos)
-        Out("RotSin: " & $RotSin)
-        Sleep(2500)
-    WEnd
+Func FindFurthestEnemyInArc($aSkillSlot)
+    Local $Arc_Angle = 45 * (3.14159265 / 180) ; 45 degrees in radians
+    Local $Furthest = 0
+    Local $Furthest_Distance = 0
+    Local $Furthest_Enemy = 0
+    Local $x = Agent_GetAgentInfo(-2, "X")
+    Local $y = Agent_GetAgentInfo(-2, "Y")
+    Local $myRot = Agent_GetAgentInfo(-2, "Rotation")
+    Local $myRotCos = Agent_GetAgentInfo(-2, "RotationCos")
+    Local $myRotSin = Agent_GetAgentInfo(-2, "RotationSin")
+    Local $enemyArray = Agent_GetAgentArray($GC_I_AGENT_TYPE_LIVING)
+
+    If Not IsArray($enemyArray) Or $enemyArray[0] = 0 Then Return
+
+    For $i = 1 To $enemyArray[0]
+        Local $enemyPtr = $enemyArray[$i]
+        If Not EnemyFilter($enemyPtr) Then ContinueLoop
+
+        ; Per-enemy variables
+        Local $enemyX = Agent_GetAgentInfo($enemyPtr, "X")
+        Local $enemyY = Agent_GetAgentInfo($enemyPtr, "Y")
+        Local $dx = $enemyX - $x
+        Local $dy = $enemyY - $y
+        Local $dist = Sqrt($dx * $dx + $dy * $dy)
+        If $dist > $GC_I_RANGE_SPELLCASTING Then ContinueLoop
+
+        ; Calculate angle between your facing and enemy vector
+        Local $dot = ($dx * $myRotCos + $dy * $myRotSin)
+        Local $len = Sqrt($dx * $dx + $dy * $dy)
+        If $len = 0 Then ContinueLoop
+        Local $angle = Acos($dot / $len)
+
+        If Abs($angle) > $Arc_Angle Then ContinueLoop ; Not in arc
+
+        ; Furthest in arc
+        If $dist > $Furthest_Distance Then
+            $Furthest_Distance = $dist
+            $Furthest_Enemy = $enemyPtr
+        EndIf
+    Next
+
+    ; Cast if found
+    If $Furthest_Enemy <> 0 Then
+        SmartCast($aSkillSlot, $Furthest_Enemy, True)
+    EndIf
 EndFunc
 
 Func ComputeDistance($aX1, $aY1, $aX2, $aY2)
