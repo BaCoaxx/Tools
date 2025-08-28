@@ -1,5 +1,6 @@
 #RequireAdmin
 #include "../../API/_GwAu3.au3"
+#include <Math.au3>
 
 Global Const $doLoadLoggedChars = True
 Opt("GUIOnEventMode", True)
