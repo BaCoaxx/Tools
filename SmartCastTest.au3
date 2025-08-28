@@ -272,6 +272,14 @@ Func FindFurthestEnemyInArc($aSkillSlot)
     EndIf
 EndFunc
 
+Func EnemyFilter($aAgentPtr)
+    ; Allegiance 3 = enemy, HP must be positive, and not dead
+    If Agent_GetAgentInfo($aAgentPtr, 'Allegiance') <> 3 Then Return False
+    If Agent_GetAgentInfo($aAgentPtr, 'HP') <= 0 Then Return False
+    If Agent_GetAgentInfo($aAgentPtr, 'IsDead') > 0 Then Return False
+    Return True
+EndFunc   ;==>EnemyFilter
+
 Func ComputeDistance($aX1, $aY1, $aX2, $aY2)
 	Return Sqrt(($aX1 - $aX2) ^ 2 + ($aY1 - $aY2) ^ 2)
 EndFunc
