@@ -218,7 +218,6 @@ EndFunc
 Func Rotation()
     While 1
         Local $Rotation = Agent_GetAgentInfo(-2, "Rotation")
-        Local $RotationRad = DegToRad($Rotation)
         Local $RotCos = Agent_GetAgentInfo(-2, "RotationCos")
         Local $RotSin = Agent_GetAgentInfo(-2, "RotationSin")
         Out("Rotation: " & $Rotation)
