@@ -226,7 +226,7 @@ Func MoveShadowStep($x, $y, $aUpkeepSkills, $Range = 100) ; ~~~ {{{TESTING PHASE
 EndFunc
 
 Func FindFurthestEnemyInArc($aSkillSlot)
-    Local $Arc_Angle = 45 * (3.14159265 / 180) ; 45 degrees in radians
+    Local $Arc_Angle = 23 * (3.14159265 / 180)
     Local $Furthest = 0
     Local $Furthest_Distance = 0
     Local $Furthest_Enemy = 0
@@ -267,8 +267,10 @@ Func FindFurthestEnemyInArc($aSkillSlot)
     Next
 
     ; Cast if found
-    If $Furthest_Enemy <> 0 Then
+    If $Furthest_Enemy <> 0 And Skill_GetSkillBarInfo($aSkillSlot, "IsRecharged") Then
         SmartCast($aSkillSlot, $Furthest_Enemy, True)
+    Else
+        Out("No valid target found or skill not recharged.")
     EndIf
 EndFunc
 
