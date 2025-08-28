@@ -121,9 +121,7 @@ While $BotRunning
     ;Sleep(500)
     ;Out("Ready")
     Sleep(250)
-    MoveRunning(-6031, 400, $runningEnchants, 100)
-    MoveRunning(-7675, 3473, $runningEnchants, 100)
-    MoveRunning(-8506, 4314, $runningEnchants, 100)  ; Move to coords with upkeep skills and a range of 100
+    Rotation()
     Sleep(1000)
 WEnd
 
@@ -146,7 +144,7 @@ Func SmartCast($aSkillSlot, $aTarget = -2, $waitForRecharge = False)
     EndIf
 
     ; Check if the skill is recharged and then make sure we have enough energy needed to cast
-    If Skill_GetSkillbarInfo($aSkillSlot, "IsRecharged") Then
+    If Skill_GetSkillBarInfo($aSkillSlot, "IsRecharged") Then
         If Agent_GetAgentInfo(-2, "CurrentEnergy") >= Skill_GetSkillInfo($aSkill, "EnergyCost") Then
             Skill_UseSkill($aSkillSlot, $aTarget)
             
@@ -174,7 +172,7 @@ Func IsCasting($aSkillSlot)
     EndIf
 EndFunc
 
-Func MoveRunning($x, $y, $aUpkeepSkills, $Range = 100)
+Func MoveUpkeep($x, $y, $aUpkeepSkills, $Range = 100)
     While ComputeDistance(Agent_GetAgentInfo(-2, "X"), Agent_GetAgentInfo(-2, "Y"), $x, $y) > $Range
         ; If the skills in the skillslots are not active, or they are about to expire then we recast them
         For $i = 0 To UBound($aUpkeepSkills) - 1
@@ -192,6 +190,35 @@ Func MoveRunning($x, $y, $aUpkeepSkills, $Range = 100)
         Next
         Sleep(100)
         Map_Move($x, $y)
+    WEnd
+EndFunc
+
+Func MoveShadowStep($x, $y, $aUpkeepSkills, $Range = 100) ; ~~~ {{{TESTING PHASE}}} ~~~
+    While ComputeDistance(Agent_GetAgentInfo(-2, "X"), Agent_GetAgentInfo(-2, "Y"), $x, $y) > $Range
+        ; If the skills in the skillslots are not active, or they are about to expire then we recast them
+        For $i = 0 To UBound($aUpkeepSkills) - 1
+            Local $aSkill = Skill_GetSkillBarInfo($aUpkeepSkills[$i], "SkillID")
+            Local $hasEffect = Agent_GetAgentEffectInfo(-2, $aSkill, "HasEffect")
+            Local $skillDuration = Agent_GetAgentEffectInfo(-2, $aSkill, "Duration")
+            Local $timeRemaining = Agent_GetAgentEffectInfo(-2, $aSkill, "TimeRemaining")
+            Local $recastTime = ($skillDuration * 1000) / 8
+
+            Out("SkillID: " & $aSkill & " HasEffect: " & $hasEffect & " TimeRemaining: " & $timeRemaining & " RecastTime: " & $recastTime)
+
+            If Not $hasEffect Or $timeRemaining <= $recastTime Then
+                SmartCast($aUpkeepSkills[$i], -2)
+            EndIf            
+        Next
+        Sleep(100)
+        Map_Move($x, $y)
+    WEnd
+EndFunc
+
+Func Rotation()
+    While 1
+        Local $Rotation = Agent_GetAgentInfo(-2, "Rotation")
+        Out("Rotation: " & $Rotation)
+        Sleep(2500)
     WEnd
 EndFunc
 
