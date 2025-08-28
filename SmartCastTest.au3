@@ -122,14 +122,14 @@ While $BotRunning
     ;Sleep(500)
     ;Out("Ready")
     Sleep(250)
-    MoveShadowStep(-6029, -1079, $runningEnchants, 100) ; Move to (1000, 1000) using Shadow Step and upkeep skills
-    MoveShadowStep(-6419, -807, $runningEnchants, 100) ; Move to (2000, 1000) using Shadow Step and upkeep skills
-    MoveShadowStep(-6024, 745, $runningEnchants, 100)
-    MoveShadowStep(-6395, 2202, $runningEnchants, 100)
-    MoveShadowStep(-7078, 2331, $runningEnchants, 100)
-    MoveShadowStep(-6991, 3525, $runningEnchants, 100)
-    MoveShadowStep(-6298, 2668, $runningEnchants, 100)
-    MoveShadowStep(-6033, 108, $runningEnchants, 100)
+    MoveShadowStep(-6029, -1079, $runningEnchants, 25) ; Move to (1000, 1000) using Shadow Step and upkeep skills
+    MoveShadowStep(-6419, -807, $runningEnchants, 25) ; Move to (2000, 1000) using Shadow Step and upkeep skills
+    MoveShadowStep(-6024, 745, $runningEnchants, 25)
+    MoveShadowStep(-6395, 2202, $runningEnchants, 25)
+    MoveShadowStep(-7078, 2331, $runningEnchants, 25)
+    MoveShadowStep(-6991, 3525, $runningEnchants, 25)
+    MoveShadowStep(-6298, 2668, $runningEnchants, 25)
+    MoveShadowStep(-6033, 108, $runningEnchants, 25)
     Sleep(1000)
 WEnd
 
@@ -226,7 +226,7 @@ Func MoveShadowStep($x, $y, $aUpkeepSkills, $Range = 100) ; ~~~ {{{TESTING PHASE
 EndFunc
 
 Func FindFurthestEnemyInArc($aSkillSlot)
-    Local $Arc_Angle = 23 * (3.14159265 / 180)
+    Local $Arc_Angle = 35 * (3.14159265 / 180)
     Local $Furthest = 0
     Local $Furthest_Distance = 0
     Local $Furthest_Enemy = 0
