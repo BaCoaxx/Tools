@@ -116,54 +116,37 @@ While Not $BotRunning
 WEnd
 
 While $BotRunning
-    ;Sleep(500)
-    ;Out("Ready")
-    Sleep(250)
-    If SmartCast(1, Agent_TargetNearestEnemy()) Then 
-        Out("Success")
-    Else
-        Out("Failed")
-    EndIf ; Cast skill 1 on enemy, wait for recharge if needed
-    SmartCast(2, -2) ; Cast skill 2 on self, wait for recharge if needed
-    SmartCast(4, Agent_TargetNearestEnemy(), True) ; Cast skill 4 on enemy
-    SmartCast(5, -2) ; Cast skill 4 on self
-    SmartCast(3, Agent_TargetNearestEnemy(), True) ; Cast skill 3 on enemy
     Out("Debug")
     Sleep(1000)
 WEnd
 
-Func SmartCast($aSkillSlot, $aTarget = -2, $waitForRecharge = False)
-    If Agent_GetAgentInfo(-2, "IsDead") Then Return False ; We are dead, so we return
 
-    ; If waitForRecharge is True, we wait until the skill is recharged
-    If $waitForRecharge Then
-        While Not Skill_GetSkillbarInfo($aSkillSlot, "IsRecharged")
-            Sleep(32)
-        WEnd
 
-        ; Wait for enough energy too
-        While Agent_GetAgentInfo(-2, "CurrentEnergy") < Skill_GetSkillInfo(Skill_GetSkillBarInfo($aSkillSlot, "SkillID"), "EnergyCost")
-            Sleep(32)
-        WEnd
-    EndIf
+; We use a skill on target if we are not dead
+; Default target is self (-2)
+Func UseSkill($aSkillSlot, $aTarget = -2)
+    If Not GetIsDead() And IsRecharged($aSkillSlot) And Not IsCasting($aSkillSlot) Then Skill_UseSkill($aSkillSlot, $aTarget)
+EndFunc
 
-    ; Check if the skill is recharged and then make sure we have enough energy needed to cast
-    If Skill_GetSkillbarInfo($aSkillSlot, "IsRecharged") Then
-        If Agent_GetAgentInfo(-2, "CurrentEnergy") >= Skill_GetSkillInfo(Skill_GetSkillBarInfo($aSkillSlot, "SkillID"), "EnergyCost") Then
-            Skill_UseSkill($aSkillSlot, $aTarget)
-            
-            ; We wait until we are done casting before we return
-            ; This is to avoid issues with trying to cast another skill while we are still casting
-            Do
-                Sleep(32)
-            Until Not IsCasting($aSkillSlot)
-        Else
-            Return False ; Skill was recharged but we dont have enough energy to cast, so we return
-        EndIf
+; We get targets current energy
+; Default target is self (-2)
+Func GetEnergy($aTarget = -2)
+    Return Agent_GetAgentInfo($aTarget, "CurrentEnergy")
+EndFunc
+
+; We get the energy cost of a skill
+Func GetSkillCost($aSkillSlot)
+    Return Skill_GetSkillInfo(Skill_GetSkillBarInfo($aSkillSlot, "SkillID"), "EnergyCost")
+EndFunc
+
+; We check to see if a target is dead
+; Default target is self (-2)
+Func GetIsDead($aTarget = -2)
+    If Agent_GetAgentInfo($aTarget, "IsDead") Then
+        Return True
     Else
-        Return False ; The skill was not recharged, so we return
+        Return False
     EndIf
-    Return True
 EndFunc
 
 ; We check to see if we are currently casting a skill
@@ -174,6 +157,64 @@ Func IsCasting($aSkillSlot)
     Else 
         Return True
     EndIf
+EndFunc
+
+; We check to see if a skill is recharged
+Func IsRecharged($aSkillSlot)
+    If Skill_GetSkillbarInfo($aSkillSlot, "IsRecharged") Then
+        Return True
+    Else
+        Return False
+    EndIf
+EndFunc
+
+; We pick up loot if we are not dead
+Func PickUpLoot()
+    If GetIsDead() Then Return
+    
+    Local $lAgentArray = Item_GetItemArray()
+    Local $maxItems = $lAgentArray[0]
+
+    Local $i = 1
+    While Not GetIsDead() And $i <= $maxItems
+        Local $aItemPtr = $lAgentArray[$i]
+        Local $aItemAgentID = Item_GetItemInfoByPtr($aItemPtr, "AgentID")
+
+        If $aItemAgentID <> 0 And CanPickUp($aItemPtr) Then
+            Item_PickUpItem($aItemAgentID)
+            Local $lDeadlock = TimerInit()
+            While GetItemAgentExists($aItemAgentID) And Not GetIsDead()
+                Sleep(100)
+                If TimerDiff($lDeadlock) > 10000 Then ExitLoop
+            WEnd
+        EndIf
+        
+        $i += 1
+    WEnd
+EndFunc
+
+; We check to see if we want to pick up an item
+Func CanPickUp($aItemPtr)
+	Local $lModelID = Item_GetItemInfoByPtr($aItemPtr, "ModelID")
+	Local $aExtraID = Item_GetItemInfoByPtr($aItemPtr, "ExtraID")
+	Local $lRarity = Item_GetItemInfoByPtr($aItemPtr, "Rarity")
+	If (($lModelID == 2511) And (GetGoldCharacter() < 99000)) Then
+		Return True
+	ElseIf ($lModelID == $GC_I_MODELID_DYE) Then
+		If (($aExtraID == $GC_I_EXTRAID_DYE_BLACK) Or ($aExtraID == $GC_I_EXTRAID_DYE_WHITE)) Then
+			Return True
+		EndIf
+	ElseIf $lRarity == $GC_I_MODELID_RARITY_GOLD Then
+		Return False
+	ElseIf $lRarity == $GC_I_MODELID_RARITY_PURPLE Then
+		Return False
+	ElseIf $lModelID == $GC_I_MODELID_KEY_LOCKPICK Then
+		Return True
+	ElseIf (($lModelID == $GC_I_MODELID_PCONS_WAR_SUPPLIES) Or ($lModelID == $GC_I_MODELID_STACKABLE_TROPHIES_WHITE_MANTLE_EMBLEM) Or ($lModelID == $GC_I_MODELID_STACKABLE_TROPHIES_WHITE_MANTLE_BADGE)) Then
+		Return True
+	Else
+		Return False
+	EndIf
 EndFunc
 
 Func Out($TEXT)
