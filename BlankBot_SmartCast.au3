@@ -125,7 +125,16 @@ WEnd
 ; We use a skill on target if we are not dead
 ; Default target is self (-2)
 Func UseSkill($aSkillSlot, $aTarget = -2)
-    If Not GetIsDead() And IsRecharged($aSkillSlot) And Not IsCasting($aSkillSlot) Then Skill_UseSkill($aSkillSlot, $aTarget)
+    If GetIsDead() Then Return
+    If Not IsRecharged($aSkillSlot) Then Return
+    If GetEnergy() >= GetSkillCost($aSkillSlot) Then
+        Skill_UseSkill($aSkillSlot, $aTarget)
+        Do
+            Sleep(32)
+        Until Not IsCasting($aSkillSlot)
+    Else
+        Return
+    EndIf
 EndFunc
 
 ; We get targets current energy
@@ -168,29 +177,46 @@ Func IsRecharged($aSkillSlot)
     EndIf
 EndFunc
 
-; We pick up loot if we are not dead
+; We count the number of empty slots in all bags - @BubbleTea
+Func CountSlots()
+    Local $bag
+    Local $temp = 0
+    For $i = 1 To 4
+        $bag = Item_GetBagPtr($i)
+        $temp += Item_GetBagInfo($bag, "EmptySlots")
+    Next
+    Return $temp
+EndFunc
+
+; We pick up loot if we are not dead - @BubbleTea
 Func PickUpLoot()
-    If GetIsDead() Then Return
-    
     Local $lAgentArray = Item_GetItemArray()
     Local $maxItems = $lAgentArray[0]
 
-    Local $i = 1
-    While Not GetIsDead() And $i <= $maxItems
+    If GetIsDead() Then Return
+    For $i = 1 To $maxItems
+        If GetIsDead() Then ExitLoop
         Local $aItemPtr = $lAgentArray[$i]
         Local $aItemAgentID = Item_GetItemInfoByPtr($aItemPtr, "AgentID")
 
-        If $aItemAgentID <> 0 And CanPickUp($aItemPtr) Then
+        If GetIsDead() Then ExitLoop
+        If $aItemAgentID = 0 Then ContinueLoop
+
+        If CanPickUp($aItemPtr) Then
             Item_PickUpItem($aItemAgentID)
             Local $lDeadlock = TimerInit()
-            While GetItemAgentExists($aItemAgentID) And Not GetIsDead()
+            While GetItemAgentExists($aItemAgentID)
                 Sleep(100)
+                If GetIsDead() Then ExitLoop
                 If TimerDiff($lDeadlock) > 10000 Then ExitLoop
             WEnd
         EndIf
-        
-        $i += 1
-    WEnd
+    Next
+EndFunc
+
+; We check to see if an item agent still exists - @BubbleTea
+Func GetItemAgentExists($aItemAgentID)
+    Return (Agent_GetAgentPtr($aItemAgentID) > 0 And $aItemAgentID < Item_GetMaxItems())
 EndFunc
 
 ; We check to see if we want to pick up an item
