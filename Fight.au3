@@ -1,28 +1,26 @@
 Func GeneralFight($aSkillSlots, $range = 1250)
     While True
-        Local $nearestEnemyID = Agent_TargetNearestEnemy($range)
-        If $nearestEnemyID = 0 Then
+        Local $nearestEnemy = Agent_TargetNearestEnemy($range)
+        If $nearestEnemy == 0 Then
             Out("No enemies left within range: " & $range)
             ExitLoop
         EndIf
 
         While Not GetIsDead($nearestEnemyID)
-            ; Only act if not currently casting
-            If Not IsCasting() Then
-                ; Try each skill slot in order; you can adjust this logic as needed
-                For $j = 0 To UBound($aSkillSlots) - 1
-                    CombatAction($aSkillSlots[$j], $nearestEnemyID)
-                Next
-            EndIf
-            Sleep(50)
+        		If Not GetIsDead() Then
+            	If Not IsCasting() Then
+              	  For $j = 0 To UBound ($aSkillSlots) - 1
+                    UseSkill($aSkillSlots[$j], $nearestEnemyID)
+              	  Next
+            	EndIf
+          	EndIf
+          Sleep(50)
         WEnd
     WEnd
-
     PickUpLoot()
 EndFunc
 
 Func CombatAction($skillSlot, $enemyID)
-    Local $enemyHP = EnemyHP($enemyID)
     Local $energy = GetEnergy()
     Local $isReady = IsRecharged($skillSlot)
 
