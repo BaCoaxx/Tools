@@ -96,14 +96,14 @@ Func MoveTo($aX, $aY, $aRandom = 50)
 	Local $lDestX = $aX + Random(-$aRandom, $aRandom)
 	Local $lDestY = $aY + Random(-$aRandom, $aRandom)
 
-	if GetPartyDead() Then Return
+	If GetPartyDead() Then Return
 
 	Map_Move($lDestX, $lDestY, 0)
 
 	Do
 		Sleep(100)
 
-		if GetPartyDead() Then ExitLoop
+		If GetPartyDead() Then ExitLoop
 
 		$lMapLoadingOld = $lMapLoading
 		$lMapLoading = Map_GetInstanceInfo("Type")
@@ -120,7 +120,7 @@ EndFunc   ;==>MoveTo
 #EndRegion
 
 #Region Fighting
-Func AggroMoveToEx($x, $y, $s = "", $z = 1700)
+Func AggroMoveToEx($x, $y, $range = 1700)
 
 	If GetPartyDead() Then Return
 	$TimerToKill = TimerInit()
@@ -141,8 +141,8 @@ Func AggroMoveToEx($x, $y, $s = "", $z = 1700)
 			$enemy = GetNearestEnemyToAgent(-2,1700,$GC_I_AGENT_TYPE_LIVING,1,"EnemyFilter")
 			If GetPartyDead() Then ExitLoop
 			$distance = ComputeDistance(Agent_GetAgentInfo($enemy, 'X'), Agent_GetAgentInfo($enemy, 'Y'), Agent_GetAgentInfo(-2, 'X'), Agent_GetAgentInfo(-2, 'Y'))
-			If $distance < $z And $enemy <> 0 and GetPartyDead() = false Then
-				Fight($z, $s)
+			If $distance < $range And $enemy <> 0 And Not GetPartyDead() Then
+				Fight($range)
 			EndIf
 		EndIf
 
@@ -151,7 +151,7 @@ Func AggroMoveToEx($x, $y, $s = "", $z = 1700)
 		If GetPartyDead() Then ExitLoop
 		$coords[0] = Agent_GetAgentInfo(-2, 'X')
 		$coords[1] = Agent_GetAgentInfo(-2, 'Y')
-		If $oldCoords[0] = $coords[0] And $oldCoords[1] = $coords[1] and GetPartyDead() = false Then
+		If $oldCoords[0] = $coords[0] And $oldCoords[1] = $coords[1] And Not GetPartyDead() Then
 			$iBlocked += 1
 			MoveTo($coords[0], $coords[1], 300)
 			Other_RndSleep(350)
@@ -162,7 +162,7 @@ Func AggroMoveToEx($x, $y, $s = "", $z = 1700)
 	Until ComputeDistance($coords[0], $coords[1], $x, $y) < 250 Or $iBlocked > 20 or GetPartyDead() or TimerDiff($TimerToKill) > 180000
 EndFunc   ;==>AggroMoveToEx
 
-Func Fight($x, $s = "enemies")
+Func Fight($range)
 	If GetPartyDead() Then Return
 	Local $target
 	Local $distance
@@ -171,15 +171,15 @@ Func Fight($x, $s = "enemies")
 	Local $lastId = 99999, $coordinate[2], $timer
 		Do
 			If GetNumberOfFoesInRangeOfAgent(-2, 1700) = 0 Then Exitloop
-			If TimerDiff($TimerToKill) > 180000 then Exitloop
+			If TimerDiff($TimerToKill) > 180000 Then Exitloop
 			if GetPartyDead() Then ExitLoop
 			$target = GetNearestEnemyToAgent(-2,1700,$GC_I_AGENT_TYPE_LIVING,1,"EnemyFilter")
 			If GetPartyDead() Then ExitLoop
 			$distance = ComputeDistance(Agent_GetAgentInfo($target, 'X'),Agent_GetAgentInfo($target, 'Y'),Agent_GetAgentInfo(-2, 'X'),Agent_GetAgentInfo(-2, 'Y'))
-			If $target <> 0 AND $distance < $x and GetPartyDead() = false Then
-				If TimerDiff($TimerToKill) > 180000 then Exitloop
+			If $target <> 0 AND $distance < $range And Not GetPartyDead() Then
+				If TimerDiff($TimerToKill) > 180000 Then Exitloop
 				If Agent_GetAgentInfo($target, 'ID') <> $lastId Then
-					if GetPartyDead() Then ExitLoop
+					If GetPartyDead() Then ExitLoop
 					Agent_ChangeTarget($target)
 					Other_RndSleep(150)
 					Agent_CallTarget($target)
@@ -195,43 +195,43 @@ Func Fight($x, $s = "enemies")
 					If $distance > 1100 Then
 						Do
 							If GetNumberOfFoesInRangeOfAgent(-2, 1700) = 0 Then Exitloop
-							If TimerDiff($TimerToKill) > 180000 then Exitloop
-							if GetPartyDead() Then ExitLoop
+							If TimerDiff($TimerToKill) > 180000 Then Exitloop
+							If GetPartyDead() Then ExitLoop
 							Map_Move($coordinate[0],$coordinate[1])
 							Other_RndSleep(50)
 							If GetPartyDead() Then ExitLoop
 							$distance = ComputeDistance($coordinate[0],$coordinate[1],Agent_GetAgentInfo(-2, 'X'),Agent_GetAgentInfo(-2, 'Y'))
-						Until $distance < 1100 or TimerDiff($timer) > 10000 or GetPartyDead() or TimerDiff($TimerToKill) > 180000
+						Until $distance < 1100 Or TimerDiff($timer) > 10000 Or GetPartyDead() Or TimerDiff($TimerToKill) > 180000
 					EndIf
 				EndIf
-				If TimerDiff($TimerToKill) > 180000 then Exitloop
+				If TimerDiff($TimerToKill) > 180000 Then Exitloop
 				Other_RndSleep(150)
 				$timer = TimerInit()
-				if GetPartyDead() Then ExitLoop
+				If GetPartyDead() Then ExitLoop
 					Do
 						If GetNumberOfFoesInRangeOfAgent(-2, 1700) = 0 Then Exitloop
-						If TimerDiff($TimerToKill) > 180000 then Exitloop
-						if GetPartyDead() Then ExitLoop
+						If TimerDiff($TimerToKill) > 180000 Then Exitloop
+						If GetPartyDead() Then ExitLoop
 						$target = GetNearestEnemyToAgent(-2,1700,$GC_I_AGENT_TYPE_LIVING,1,"EnemyFilter")
 						If GetPartyDead() Then ExitLoop
 						$distance = GetDistance($target, -2)
-						If $distance < 1250 and GetPartyDead() = false Then
+						If $distance < 1250 And Not GetPartyDead() Then
 							If GetNumberOfFoesInRangeOfAgent(-2, 1700) = 0 Then Exitloop
-							If TimerDiff($TimerToKill) > 180000 then Exitloop
+							If TimerDiff($TimerToKill) > 180000 Then Exitloop
 							For $i = 0 To 7
 								If GetNumberOfFoesInRangeOfAgent(-2, 1700) = 0 Then Exitloop
-								If TimerDiff($TimerToKill) > 180000 then Exitloop
+								If TimerDiff($TimerToKill) > 180000 Then Exitloop
 								if GetPartyDead() Then ExitLoop
 								If Agent_GetAgentInfo($target,'IsDead') then ExitLoop
 
 								$distance = GetDistance($target, -2)
-								If $distance > $x then ExitLoop
+								If $distance > $range Then ExitLoop
 
 								$energy = GetEnergy(-2)
 
-								If IsRecharged($i+1) And $energy >= $skillCost[$i] and GetPartyDead() = false Then
+								If IsRecharged($i+1) And $energy >= $skillCost[$i] And GetPartyDead() = false Then
 									If GetNumberOfFoesInRangeOfAgent(-2, 1700) = 0 Then Exitloop
-									If TimerDiff($TimerToKill) > 180000 then Exitloop
+									If TimerDiff($TimerToKill) > 180000 Then Exitloop
 									$useSkill = $i + 1
 									UseSkillEx($useSkill, $target)
 									Other_RndSleep(150)
@@ -248,19 +248,19 @@ Func Fight($x, $s = "enemies")
 						if GetPartyDead() Then ExitLoop
 						Agent_Attack($target)
 						$distance = GetDistance($target, -2)
-					Until Agent_GetAgentInfo($target, 'HP') < 0.005 Or $distance > $x Or TimerDiff($timer) > 20000 Or GetPartyDead() or TimerDiff($TimerToKill) > 180000
+					Until Agent_GetAgentInfo($target, 'HP') < 0.005 Or $distance > $range Or TimerDiff($timer) > 20000 Or GetPartyDead() Or TimerDiff($TimerToKill) > 180000
 			EndIf
 			If GetNumberOfFoesInRangeOfAgent(-2, 1700) = 0 Then Exitloop
 			If TimerDiff($TimerToKill) > 180000 then Exitloop
-			if GetPartyDead() Then ExitLoop
+			If GetPartyDead() Then ExitLoop
 			$target = GetNearestEnemyToAgent(-2,1700,$GC_I_AGENT_TYPE_LIVING,1,"EnemyFilter")
 			If GetPartyDead() Then ExitLoop
 			$distance = GetDistance($target, -2)
-		Until Agent_GetAgentInfo($target, 'ID') = 0 OR $distance > $x Or GetPartyDead() or TimerDiff($TimerToKill) > 180000
+		Until Agent_GetAgentInfo($target, 'ID') = 0 Or $distance > $range Or GetPartyDead() Or TimerDiff($TimerToKill) > 180000
 
 ;Uncomment the lines below, if you want to pick up items
-		If CountSlots() <> 0 and GetPartyDead() = false then
-			If TimerDiff($TimerToKill) > 180000 then Return
+		If CountSlots() <> 0 And Not GetPartyDead() Then
+			If TimerDiff($TimerToKill) > 180000 Then Return
 			PickupLoot()
 		EndIf
 EndFunc   ;==>Fight
@@ -270,13 +270,13 @@ Func GetPartyDead()
 	Local $heroID
 
 	; Check, if all of those heroes are dead - if at least 1 is still alive not, return false
-	for $ii = 1 To UBound($heroNumberWithRez)
+	For $ii = 1 To UBound($heroNumberWithRez)
 		$heroID = Party_GetMyPartyHeroInfo($heroNumberWithRez[$ii-1], "AgentID")
 		If Not Agent_GetAgentInfo($heroID, "IsDead") Then Return False
 	Next
 
 	; If those heroes are all dead, check if you as player are also dead
-	If Not GetisDead(-2) then Return False
+	If Not GetisDead(-2) Then Return False
 
 	; If all area dead, return True
 	Return True
@@ -284,7 +284,7 @@ EndFunc ;==> GetPartyDead
 
 Func CacheHeroesWithRez()
 	; Go over all heroes and find all Heroes with rez skills
-	for $i = 1 To Party_GetMyPartyInfo("ArrayHeroPartyMemberSize")
+	For $i = 1 To Party_GetMyPartyInfo("ArrayHeroPartyMemberSize")
 		If HasRezSkill($i) Then
 			Redim $heroNumberWithRez[UBound($heroNumberWithRez)+1]
 			$heroNumberWithRez[UBound($heroNumberWithRez)-1] = $i
@@ -412,8 +412,8 @@ Func UseSkillEx($aSkill, $aTgt = -2, $aTimeout = 3000)
 EndFunc   ;==>UseSkillEx
 
 Func HasRezSkill($a_i_HeroNumber)
-	for $i = 1 To 8
-		for $ii = 1 To UBound($RezSkillIDs)
+	For $i = 1 To 8
+		For $ii = 1 To UBound($RezSkillIDs)
 			If Skill_GetSkillbarInfo($i, "SkillID", $a_i_HeroNumber) = $RezSkillIDs[$ii-1] Then
 				Return True
 			EndIf
@@ -438,13 +438,13 @@ Func PickUpLoot()
     Local $lAgentArray = Item_GetItemArray()
     Local $maxitems = $lAgentArray[0]
 
-	if GetPartyDead() Then Return
+	If GetPartyDead() Then Return
     For $i = 1 To $maxitems
-		if GetPartyDead() Then ExitLoop
+		If GetPartyDead() Then ExitLoop
         Local $aItemPtr = $lAgentArray[$i]
         Local $aItemAgentID = Item_GetItemInfoByPtr($aItemPtr, "AgentID")
 
-        if GetPartyDead() Then ExitLoop
+        If GetPartyDead() Then ExitLoop
         If $aItemAgentID = 0 Then ContinueLoop ; If Item is not on the ground
 
         If CanPickUp($aItemPtr) Then
@@ -452,7 +452,7 @@ Func PickUpLoot()
             Local $lDeadlock = TimerInit()
             While GetItemAgentExists($aItemAgentID)
                 Sleep(100)
-                if GetPartyDead() Then ExitLoop
+                If GetPartyDead() Then ExitLoop
                 If TimerDiff($lDeadlock) > 10000 Then ExitLoop
             WEnd
         EndIf
@@ -471,7 +471,7 @@ Func CanPickUp($aItemPtr)
 	If (($lModelID == 2511) And (GetGoldCharacter() < 99000)) Then
 		Return True	; gold coins (only pick if character has less than 99k in inventory)
 	ElseIf ($lModelID == $ITEM_ID_Dyes) Then	; if dye
-		If (($aExtraID == $ITEM_ExtraID_BlackDye) Or ($aExtraID == $ITEM_ExtraID_WhiteDye))Then ; only pick white and black ones
+		If (($aExtraID == $ITEM_ExtraID_BlackDye) Or ($aExtraID == $ITEM_ExtraID_WhiteDye)) Then ; only pick white and black ones
 			Return True
 		EndIf
 	ElseIf $lRarity == $RARITY_Gold Then ; gold items
