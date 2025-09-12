@@ -117,6 +117,48 @@ Func MoveTo($aX, $aY, $aRandom = 50)
 		EndIf
 	Until ComputeDistance(Agent_GetAgentInfo(-2, "X"), Agent_GetAgentInfo(-2, "Y"), $lDestX, $lDestY) < 25 Or $lBlocked > 14 Or GetPartyDead()
 EndFunc   ;==>MoveTo
+
+Func MoveUpkeepEx($aX, $aY, $aUpkeepSkills, $aOrderedSkills, $bCastInOrder = False, $Range = 85, $aRandom = 50)
+Local $lDestX = $aX + Random(-$aRandom, $aRandom)
+Local $lDestY = $aY + Random(-$aRandom, $aRandom)
+    While ComputeDistance(Agent_GetAgentInfo(-2, "X"), Agent_GetAgentInfo(-2, "Y"), $1DestX, $1DestY) > $Range And Not GetPartyDead()
+        If $bCastInOrder And IsArray($aOrderedSkills) Then
+            ; Ordered cast logic: wait for all to recharge, then cast in order
+            Local $allReady = True
+            For $i = 0 To UBound($aOrderedSkills) - 1
+                If Not IsRecharged($aOrderedSkills[$i]) Then
+                    $allReady = False
+                    ExitLoop
+                EndIf
+            Next
+
+            If $allReady Then
+                For $i = 0 To UBound($aOrderedSkills) - 1
+                    UseSkillEx($aOrderedSkills[$i], -2)
+                    Sleep(150)
+                Next
+            EndIf
+        Else
+            ; Original upkeep logic (recast if not active or about to expire)
+            If IsArray($aUpkeepSkills) Then
+                For $i = 0 To UBound($aUpkeepSkills) - 1
+                    Local $aSkill = Skill_GetSkillBarInfo($aUpkeepSkills[$i], "SkillID")
+                    Local $hasEffect = Agent_GetAgentEffectInfo(-2, $aSkill, "HasEffect")
+                    Local $skillDuration = Agent_GetAgentEffectInfo(-2, $aSkill, "Duration")
+                    Local $timeRemaining = Agent_GetAgentEffectInfo(-2, $aSkill, "TimeRemaining")
+                    Local $recastTime = ($skillDuration * 1000) / 8
+
+                    If Not $hasEffect Or $timeRemaining <= $recastTime Then
+                        UseSkillEx($aUpkeepSkills[$i], -2)
+                    EndIf            
+                Next
+            EndIf
+        EndIf
+
+        Map_Move($x, $y, 0)
+        Sleep(100)
+    WEnd
+EndFunc
 #EndRegion
 
 #Region Fighting
