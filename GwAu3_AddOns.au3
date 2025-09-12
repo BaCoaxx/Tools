@@ -443,14 +443,16 @@ Func UseSkillEx($aSkill, $aTgt = -2, $aTimeout = 3000)
 	Local $aSkillID = Skill_GetSkillbarInfo($aSkill, "SkillID")
 	Local $aEnergyCost = Skill_GetSkillInfo($aSkillID, "EnergyCost")
 	If GetEnergy(-2) < $aEnergyCost Then Return
-	Local $aAftercast = Skill_GetSkillInfo($aSkillID, "Aftercast")
 	Local $lDeadlock = TimerInit()
 	Skill_UseSkill($aSkill, $aTgt)
 	Do
-		Sleep(50)
+		Sleep(32)
 		If GetIsDead(-2) Then Return
 	Until (Not IsRecharged($aSkill)) Or (TimerDiff($lDeadlock) > $aTimeout)
-	Sleep($aAftercast * 1000)
+
+Do
+  Sleep(32)
+Until Not Agent_GetAgentInfo(-2, "IsCasting") And Not Agent_GetAgentInfo(-2, "Skill") And Not Skill_GetSkillbarInfo($aSkill, "Casting")
 EndFunc   ;==>UseSkillEx
 
 Func HasRezSkill($a_i_HeroNumber)
