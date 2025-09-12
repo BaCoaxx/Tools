@@ -155,14 +155,14 @@ Local $lDestY = $aY + Random(-$aRandom, $aRandom)
             EndIf
         EndIf
 
-        Map_Move($x, $y, 0)
+        Map_Move($1DestX, $1DestY, 0)
         Sleep(100)
     WEnd
-EndFunc
+EndFunc   ;==>MoveUpkeepEx
 #EndRegion
 
 #Region Fighting
-Func AggroMoveToEx($x, $y, $range = 1700)
+Func AggroMoveToEx($aX, $aY, $range = 1700)
 
 	If GetPartyDead() Then Return
 	$TimerToKill = TimerInit()
@@ -171,7 +171,7 @@ Func AggroMoveToEx($x, $y, $range = 1700)
 	Local $enemy
 	Local $distance
 
-	Map_Move($x, $y, $random)
+	Map_Move($aX, $aY, $random)
 	$coords[0] = Agent_GetAgentInfo(-2, 'X')
 	$coords[1] = Agent_GetAgentInfo(-2, 'Y')
 	Do
@@ -198,10 +198,10 @@ Func AggroMoveToEx($x, $y, $range = 1700)
 			MoveTo($coords[0], $coords[1], 300)
 			Other_RndSleep(350)
 			If GetPartyDead() Then ExitLoop
-			Map_Move($x, $y)
+			Map_Move($aX, $aY)
 		EndIf
 
-	Until ComputeDistance($coords[0], $coords[1], $x, $y) < 250 Or $iBlocked > 20 Or GetPartyDead() Or TimerDiff($TimerToKill) > 180000
+	Until ComputeDistance($coords[0], $coords[1], $aX, $aY) < 250 Or $iBlocked > 20 Or GetPartyDead() Or TimerDiff($TimerToKill) > 180000
 EndFunc   ;==>AggroMoveToEx
 
 Func Fight($range)
@@ -214,7 +214,7 @@ Func Fight($range)
 		Do
 			If GetNumberOfFoesInRangeOfAgent(-2, 1700) = 0 Then Exitloop
 			If TimerDiff($TimerToKill) > 180000 Then Exitloop
-			if GetPartyDead() Then ExitLoop
+			If GetPartyDead() Then ExitLoop
 			$target = GetNearestEnemyToAgent(-2,1700,$GC_I_AGENT_TYPE_LIVING,1,"EnemyFilter")
 			If GetPartyDead() Then ExitLoop
 			$distance = ComputeDistance(Agent_GetAgentInfo($target, 'X'),Agent_GetAgentInfo($target, 'Y'),Agent_GetAgentInfo(-2, 'X'),Agent_GetAgentInfo(-2, 'Y'))
