@@ -121,9 +121,8 @@ EndFunc   ;==>MoveTo
 Func MoveUpkeepEx($aX, $aY, $aUpkeepSkills, $aOrderedSkills, $bCastInOrder = False, $Range = 85, $aRandom = 50)
 Local $lDestX = $aX + Random(-$aRandom, $aRandom)
 Local $lDestY = $aY + Random(-$aRandom, $aRandom)
-    While ComputeDistance(Agent_GetAgentInfo(-2, "X"), Agent_GetAgentInfo(-2, "Y"), $1DestX, $1DestY) > $Range And Not GetPartyDead()
+    While ComputeDistance(Agent_GetAgentInfo(-2, "X"), Agent_GetAgentInfo(-2, "Y"), $lDestX, $lDestY) > $Range And Not GetPartyDead()
         If $bCastInOrder And IsArray($aOrderedSkills) Then
-            ; Ordered cast logic: wait for all to recharge, then cast in order
             Local $allReady = True
             For $i = 0 To UBound($aOrderedSkills) - 1
                 If Not IsRecharged($aOrderedSkills[$i]) Then
@@ -139,7 +138,6 @@ Local $lDestY = $aY + Random(-$aRandom, $aRandom)
                 Next
             EndIf
         Else
-            ; Original upkeep logic (recast if not active or about to expire)
             If IsArray($aUpkeepSkills) Then
                 For $i = 0 To UBound($aUpkeepSkills) - 1
                     Local $aSkill = Skill_GetSkillBarInfo($aUpkeepSkills[$i], "SkillID")
@@ -155,7 +153,7 @@ Local $lDestY = $aY + Random(-$aRandom, $aRandom)
             EndIf
         EndIf
 
-        Map_Move($1DestX, $1DestY, 0)
+        Map_Move($lDestX, $lDestY, 0)
         Sleep(100)
     WEnd
 EndFunc   ;==>MoveUpkeepEx
@@ -281,12 +279,12 @@ Func Fight($range)
 									Agent_Attack($target)
 									Other_RndSleep(150)
 								EndIf
-								If TimerDiff($TimerToKill) > 180000 then Exitloop
+								If TimerDiff($TimerToKill) > 180000 Then Exitloop
 								If $i = 7 Then $i = -1 ; change -1
 								If GetPartyDead() Then ExitLoop
 							Next
 						EndIf
-						If TimerDiff($TimerToKill) > 180000 then Exitloop
+						If TimerDiff($TimerToKill) > 180000 Then Exitloop
 						If GetPartyDead() Then ExitLoop
 						Agent_Attack($target)
 						$distance = GetDistance($target, -2)
@@ -445,14 +443,11 @@ Func UseSkillEx($aSkill, $aTgt = -2, $aTimeout = 3000)
 	If GetEnergy(-2) < $aEnergyCost Then Return
 	Local $lDeadlock = TimerInit()
 	Skill_UseSkill($aSkill, $aTgt)
+
 	Do
 		Sleep(32)
 		If GetIsDead(-2) Then Return
-	Until (Not IsRecharged($aSkill)) Or (TimerDiff($lDeadlock) > $aTimeout)
-
-Do
-  Sleep(32)
-Until Not Agent_GetAgentInfo(-2, "IsCasting") And Not Agent_GetAgentInfo(-2, "Skill") And Not Skill_GetSkillbarInfo($aSkill, "Casting")
+	Until (Not Agent_GetAgentInfo(-2, "IsCasting") And Not Agent_GetAgentInfo(-2, "Skill") And Not Skill_GetSkillbarInfo($aSkill, "Casting")) Or (TimerDiff($lDeadlock) > $aTimeout)
 EndFunc   ;==>UseSkillEx
 
 Func HasRezSkill($a_i_HeroNumber)
@@ -880,7 +875,7 @@ Func Salvage($BagIndex)
 		EndIf
 		$aItemPtr = Item_GetItemBySlot($BagIndex, $ii)
 		If Item_GetItemInfoByPtr($aItemPtr, "ItemID") = 0 Then ContinueLoop
-		If IsRareRune($aItemPtr) = 0 and IsRareInsignia($aItemPtr) = 0 then
+		If IsRareRune($aItemPtr) = 0 And IsRareInsignia($aItemPtr) = 0 Then
 			Continueloop
 		Else
 			If IsAlreadySalvaged($aItemPtr) Then ContinueLoop
@@ -1101,13 +1096,13 @@ Func UseConset()
 			$lItemID = Item_GetItemInfoByPtr($lItemPtr, 'ModelID')
 			For $ii = 0 to UBound($Conset) - 1
 				If $lItemID = $Conset[$ii] Then
-					If $ii = 0 and GetEffectTimeRemainingEx(-2, $EffectEssence) = 0 then
+					If $ii = 0 And GetEffectTimeRemainingEx(-2, $EffectEssence) = 0 Then
 						Item_UseItem($lItemPtr)
 						Sleep(250)
-					ElseIf $ii = 1 and GetEffectTimeRemainingEx(-2, $EffectArmor) = 0 then
+					ElseIf $ii = 1 And GetEffectTimeRemainingEx(-2, $EffectArmor) = 0 Then
 						Item_UseItem($lItemPtr)
 						Sleep(250)
-					ElseIf $ii = 2 and GetEffectTimeRemainingEx(-2, $EffectGrail) = 0 then
+					ElseIf $ii = 2 And GetEffectTimeRemainingEx(-2, $EffectGrail) = 0 Then
 						Item_UseItem($lItemPtr)
 						Sleep(250)
 					Else
@@ -1185,7 +1180,7 @@ Func ScanDyes($dyeID)
 			If Item_GetItemInfoByPtr($aItemPtr, "ItemID") = 0 Then ContinueLoop
 			$ModelID = Item_GetItemInfoByPtr($aItemPtr, "ModelID")
 			$ExtraID = Item_GetItemInfoByPtr($aItemPtr, "ExtraID")
-			If $ModelID == 146 and $ExtraID == $dyeID Then
+			If $ModelID == 146 And $ExtraID == $dyeID Then
 				$dyeNumber += Item_GetItemInfoByPtr($aItemPtr, "Quantity")
 			Else
 				ContinueLoop
@@ -1628,7 +1623,7 @@ Func IsRareMaterial($aItem)
 	Local $M = Item_GetItemInfoByPtr($aItem, "ModelID")
 	Local $Type = Item_GetItemInfoByPtr($aItem, "ItemType")
  
-	If $Type <> 11 then Return False	; Some items have the same model ID, so the type of rare mats is 11
+	If $Type <> 11 Then Return False	; Some items have the same model ID, so the type of rare mats is 11
 	Switch $M
 	Case 922, 923, 926, 927, 928, 930, 931, 932, 935, 936, 937, 938, 939, 941, 942, 943, 944, 945, 949, 950, 951, 952, 956, 6532, 6533
 	   Return True ; Rare Mats
@@ -2688,7 +2683,7 @@ EndFunc ;==> IsEliteTome
 Func IsFiveE($aItem)
 	Local $ModStruct = Item_GetModStruct($aItem)
 	Local $t = Item_GetItemInfoByPtr($aItem, "ItemType")
-	If (IsIHaveThePower($ModStruct) and $t = 2) Then Return True	; (Nur für Äxte)
+	If (IsIHaveThePower($ModStruct) And $t = 2) Then Return True	; (Nur für Äxte)
 EndFunc	;==> IsFiveE
 
 Func IsIHaveThePower($ModStruct)
@@ -2701,7 +2696,7 @@ Func IsMaxAxe($aItem)
 	Local $Dmg = GetItemMaxDmg($aItem)
 	Local $Req = GetItemReq($aItem)
 
-	If $Type == 2 and $Dmg == 28 and $Req == 9 Then
+	If $Type == 2 And $Dmg == 28 And $Req == 9 Then
 		Return True
 	Else
 		Return False
@@ -2713,7 +2708,7 @@ Func IsMaxDagger($aItem)
 	Local $Dmg = GetItemMaxDmg($aItem)
 	Local $Req = GetItemReq($aItem)
 
-	If $Type == 32 and $Dmg == 17 and $Req == 9 Then
+	If $Type == 32 And $Dmg == 17 And $Req == 9 Then
 		Return True
 	Else
 		Return False
