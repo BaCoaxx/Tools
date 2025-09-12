@@ -115,7 +115,7 @@ Func MoveTo($aX, $aY, $aRandom = 50)
 			$lDestY = $aY + Random(-$aRandom, $aRandom)
 			Map_Move($lDestX, $lDestY, 0)
 		EndIf
-	Until ComputeDistance(Agent_GetAgentInfo(-2, "X"), Agent_GetAgentInfo(-2, "Y"), $lDestX, $lDestY) < 25 Or $lBlocked > 14 or GetPartyDead()
+	Until ComputeDistance(Agent_GetAgentInfo(-2, "X"), Agent_GetAgentInfo(-2, "Y"), $lDestX, $lDestY) < 25 Or $lBlocked > 14 Or GetPartyDead()
 EndFunc   ;==>MoveTo
 #EndRegion
 
@@ -159,7 +159,7 @@ Func AggroMoveToEx($x, $y, $range = 1700)
 			Map_Move($x, $y)
 		EndIf
 
-	Until ComputeDistance($coords[0], $coords[1], $x, $y) < 250 Or $iBlocked > 20 or GetPartyDead() or TimerDiff($TimerToKill) > 180000
+	Until ComputeDistance($coords[0], $coords[1], $x, $y) < 250 Or $iBlocked > 20 Or GetPartyDead() Or TimerDiff($TimerToKill) > 180000
 EndFunc   ;==>AggroMoveToEx
 
 Func Fight($range)
@@ -221,15 +221,15 @@ Func Fight($range)
 							For $i = 0 To 7
 								If GetNumberOfFoesInRangeOfAgent(-2, 1700) = 0 Then Exitloop
 								If TimerDiff($TimerToKill) > 180000 Then Exitloop
-								if GetPartyDead() Then ExitLoop
-								If Agent_GetAgentInfo($target,'IsDead') then ExitLoop
+								If GetPartyDead() Then ExitLoop
+								If Agent_GetAgentInfo($target,'IsDead') Then ExitLoop
 
 								$distance = GetDistance($target, -2)
 								If $distance > $range Then ExitLoop
 
 								$energy = GetEnergy(-2)
 
-								If IsRecharged($i+1) And $energy >= $skillCost[$i] And GetPartyDead() = false Then
+								If IsRecharged($i+1) And $energy >= $skillCost[$i] And Not GetPartyDead() Then
 									If GetNumberOfFoesInRangeOfAgent(-2, 1700) = 0 Then Exitloop
 									If TimerDiff($TimerToKill) > 180000 Then Exitloop
 									$useSkill = $i + 1
@@ -240,18 +240,18 @@ Func Fight($range)
 									Other_RndSleep(150)
 								EndIf
 								If TimerDiff($TimerToKill) > 180000 then Exitloop
-								If $i = 7 then $i = -1 ; change -1
-								if GetPartyDead() Then ExitLoop
+								If $i = 7 Then $i = -1 ; change -1
+								If GetPartyDead() Then ExitLoop
 							Next
 						EndIf
 						If TimerDiff($TimerToKill) > 180000 then Exitloop
-						if GetPartyDead() Then ExitLoop
+						If GetPartyDead() Then ExitLoop
 						Agent_Attack($target)
 						$distance = GetDistance($target, -2)
 					Until Agent_GetAgentInfo($target, 'HP') < 0.005 Or $distance > $range Or TimerDiff($timer) > 20000 Or GetPartyDead() Or TimerDiff($TimerToKill) > 180000
 			EndIf
 			If GetNumberOfFoesInRangeOfAgent(-2, 1700) = 0 Then Exitloop
-			If TimerDiff($TimerToKill) > 180000 then Exitloop
+			If TimerDiff($TimerToKill) > 180000 Then Exitloop
 			If GetPartyDead() Then ExitLoop
 			$target = GetNearestEnemyToAgent(-2,1700,$GC_I_AGENT_TYPE_LIVING,1,"EnemyFilter")
 			If GetPartyDead() Then ExitLoop
@@ -276,7 +276,7 @@ Func GetPartyDead()
 	Next
 
 	; If those heroes are all dead, check if you as player are also dead
-	If Not GetisDead(-2) Then Return False
+	If Not GetIsDead(-2) Then Return False
 
 	; If all area dead, return True
 	Return True
@@ -406,7 +406,7 @@ Func UseSkillEx($aSkill, $aTgt = -2, $aTimeout = 3000)
 	Skill_UseSkill($aSkill, $aTgt)
 	Do
 		Sleep(50)
-		If GetIsDead(-2) = 1 Then Return
+		If GetIsDead(-2) Then Return
 	Until (Not IsRecharged($aSkill)) Or (TimerDiff($lDeadlock) > $aTimeout)
 	Sleep($aAftercast * 1000)
 EndFunc   ;==>UseSkillEx
@@ -554,11 +554,11 @@ Func Inventory()
 
 	$inventorytrigger = 1
 
-	sleep(1000)
+	Sleep(1000)
 
 	Out("Move to Merchant")
 	MerchantEotN()
-	sleep(2000)
+	Sleep(2000)
 
 	Out("Identifying")
 	For $i = 1 To 4
@@ -608,12 +608,12 @@ Func Inventory()
 		EndIf
 	WEnd
 
-	If GetGoldCharacter() > 20000 and GetGoldStorage() > 900000 Then
+	If GetGoldCharacter() > 20000 And GetGoldStorage() > 900000 Then
 		Out("Buying Rare Materials")
 		RareMaterialTraderEotN()
 	EndIf
 
-	sleep(3000)
+	Sleep(3000)
 	RndTravel($Town_ID_Farm)
 EndFunc ;==> Inventory
 
@@ -1094,7 +1094,7 @@ EndFunc   ;==>FindSummoningStone
 Func UseSummoningStone()
 	Local $lItemPtr
 	Local $litemID
-	if GetEffectTimeRemainingEx(-2, 2886) <> 0 then Return False	; Summoning Sickness
+	If GetEffectTimeRemainingEx(-2, 2886) <> 0 Then Return False	; Summoning Sickness
 	For $i = 1 To 4
 		For $j = 1 To Item_GetBagInfo(Item_GetBagPtr($i), 'Slots')
 			$lItemPtr = Item_GetItemBySlot($i, $j)
@@ -1161,10 +1161,10 @@ Func SellRunes($BagIndex)
 		Local $sellable = IsSellableInsignia($aItemPtr) + IsSellableRune($aItemPtr)
 		Sleep(250)
 		If $sellable > 0 Then
-			if GetGoldCharacter() > 65000 and GetGoldStorage() <= 935000 Then
+			If GetGoldCharacter() > 65000 And GetGoldStorage() <= 935000 Then
 				Item_DepositGold(65000)
 				Sleep(500)
-			ElseIf GetGoldCharacter() > 65000 and GetGoldStorage() > 935000 Then
+			ElseIf GetGoldCharacter() > 65000 And GetGoldStorage() > 935000 Then
 				ExitLoop
 			EndIf
 
