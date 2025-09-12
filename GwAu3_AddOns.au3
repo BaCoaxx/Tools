@@ -78,7 +78,7 @@ Func Resign()
 	Chat_SendChat('resign', '/')
 EndFunc   ;==>Resign
 
-Func GetisDead($aAgent = -2)
+Func GetIsDead($aAgent = -2)
 	Return Agent_GetAgentInfo($aAgent, "IsDead")
 EndFunc	;==>GetisDead
 
