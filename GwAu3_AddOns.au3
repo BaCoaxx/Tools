@@ -113,6 +113,10 @@ Func MoveTo($aX, $aY, $aRandom = 50)
 			$lBlocked += 1
 			$lDestX = $aX + Random(-$aRandom, $aRandom)
 			$lDestY = $aY + Random(-$aRandom, $aRandom)
+			If $lBlocked == 14 Then
+				Chat_SendChat("Stuck", "/")
+				Out('Bodyblocked! Repositioning...')
+			EndIf
 			Map_Move($lDestX, $lDestY, 0)
 		EndIf
 	Until ComputeDistance(Agent_GetAgentInfo(-2, "X"), Agent_GetAgentInfo(-2, "Y"), $lDestX, $lDestY) < 25 Or $lBlocked > 14 Or GetPartyDead()
