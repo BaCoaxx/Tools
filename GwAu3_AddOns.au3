@@ -122,7 +122,7 @@ Func MoveTo($aX, $aY, $aRandom = 50)
 	Until ComputeDistance(Agent_GetAgentInfo(-2, "X"), Agent_GetAgentInfo(-2, "Y"), $lDestX, $lDestY) < 25 Or $lBlocked > 14 Or GetPartyDead()
 EndFunc   ;==>MoveTo
 
-Func MoveUpkeepEx($aX, $aY, $aUpkeepSkills, $aOrderedSkills, $bCastInOrder = False, $Range = 85, $aRandom = 50)
+Func MoveUpkeepEx($aX, $aY, $aUpkeepSkills = 0, $aOrderedSkills = 0, $bCastInOrder = False, $Range = 85, $aRandom = 50)
 Local $lDestX = $aX + Random(-$aRandom, $aRandom)
 Local $lDestY = $aY + Random(-$aRandom, $aRandom)
     While ComputeDistance(Agent_GetAgentInfo(-2, "X"), Agent_GetAgentInfo(-2, "Y"), $lDestX, $lDestY) > $Range And Not GetPartyDead()
