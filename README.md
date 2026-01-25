@@ -68,7 +68,7 @@ Please keep farms self-contained and follow the existing structure so they integ
 
 The `AscEnd` folder **must** be placed inside the `scripts` directory.
 
-<img src="https://ik.imagekit.io/qmaxfxfcd7/folder-contents.png" width="20%" />
+<img src="https://ik.imagekit.io/qmaxfxfcd7/folder-contents.png" width="35%" />
 
 ---
 
