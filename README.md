@@ -68,9 +68,10 @@ Please keep farms self-contained and follow the existing structure so they integ
 
 The `AscEnd` folder **must** be placed inside the `scripts` directory:
 
-
-
-
+```
+Scripts/
+├── AscEnd
+```
 ---
 
 ## ⚠️ Disclaimer
