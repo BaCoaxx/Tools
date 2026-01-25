@@ -58,8 +58,8 @@ Please keep farms self-contained and follow the existing structure so they integ
 
 1. Download or clone this repository
 2. Copy the **AscEnd** folder into your GwAu3 `scripts` directory
-3. Launch GwAu3
-4. Select **AscEnd** from the scripts menu
+3. Launch AscEnd.au3
+4. Select your **character** from the names dropdown
 5. Choose a farm and start grinding
 
 ---
