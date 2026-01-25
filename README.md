@@ -66,12 +66,10 @@ Please keep farms self-contained and follow the existing structure so they integ
 
 ## 📁 Folder Structure
 
-The `AscEnd` folder **must** be placed inside the `scripts` directory:
+The `AscEnd` folder **must** be placed inside the `scripts` directory.
 
-```
-Scripts/
-├── AscEnd
-```
+<img src="https://ik.imagekit.io/qmaxfxfcd7/folder-contents.png" width="20%" />
+
 ---
 
 ## ⚠️ Disclaimer
@@ -83,4 +81,7 @@ Use at your own risk. The authors take no responsibility for any in-game consequ
 
 ## 📜 License
 
-MIT License — see the `LICENSE` file for details.
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+This project is licensed under the **MIT License**.  
+See the `LICENSE` file for full details.
