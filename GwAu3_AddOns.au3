@@ -87,7 +87,6 @@ Func GetEnergy($aAgent = -2)
 EndFunc	;==>GetEnergy
 #EndRegion
 
-
 #Region Movement
 Func MoveTo($aX, $aY, $aRandom = 50)
 	Local $lBlocked = 0
@@ -115,11 +114,10 @@ Func MoveTo($aX, $aY, $aRandom = 50)
 			$lDestY = $aY + Random(-$aRandom, $aRandom)
 			If $lBlocked == 14 Then
 				Chat_SendChat("Stuck", "/")
-				Out('Bodyblocked! Repositioning...')
 			EndIf
 			Map_Move($lDestX, $lDestY, 0)
 		EndIf
-	Until ComputeDistance(Agent_GetAgentInfo(-2, "X"), Agent_GetAgentInfo(-2, "Y"), $lDestX, $lDestY) < 25 Or $lBlocked > 14 Or GetPartyDead()
+	Until ComputeDistance(Agent_GetAgentInfo(-2, "X"), Agent_GetAgentInfo(-2, "Y"), $lDestX, $lDestY) < 25 Or $lBlocked > 20 Or GetPartyDead()
 EndFunc   ;==>MoveTo
 
 Func MoveUpkeepEx($aX, $aY, $aUpkeepSkills = 0, $aOrderedSkills = 0, $bCastInOrder = False, $Range = 85, $aRandom = 50)
@@ -161,10 +159,163 @@ Local $lDestY = $aY + Random(-$aRandom, $aRandom)
         Sleep(100)
     WEnd
 EndFunc   ;==>MoveUpkeepEx
+
+Func RunToPickUp($g_ai2_RunPath)
+    For $i = 0 To UBound($g_ai2_RunPath, 1) - 1
+        PickUpLoot()
+        MoveTo($g_ai2_RunPath[$i][0], $g_ai2_RunPath[$i][1])
+    Next
+EndFunc  ;==>RunToPickUp
 #EndRegion
 
 #Region Fighting
-Func AggroMoveToEx($aX, $aY, $range = 1700)
+;~ Func AggroMoveToEx($aX, $aY, $range = 1700)
+
+;~ 	If GetPartyDead() Then Return
+;~ 	$TimerToKill = TimerInit()
+;~ 	Local $random = 50
+;~ 	Local $iBlocked = 0
+;~ 	Local $enemy
+;~ 	Local $distance
+
+;~ 	Map_Move($aX, $aY, $random)
+;~ 	$coords[0] = Agent_GetAgentInfo(-2, 'X')
+;~ 	$coords[1] = Agent_GetAgentInfo(-2, 'Y')
+;~ 	Do
+;~ 		If GetPartyDead() Then ExitLoop
+;~ 		Other_RndSleep(250)
+;~ 		$oldCoords = $coords
+;~ 		If GetNumberOfFoesInRangeOfAgent(-2,1700,$GC_I_AGENT_TYPE_LIVING,1,"EnemyFilter") > 0 Then
+;~ 			If GetPartyDead() Then ExitLoop
+;~ 			$enemy = GetNearestEnemyToAgent(-2,1700,$GC_I_AGENT_TYPE_LIVING,1,"EnemyFilter")
+;~ 			If GetPartyDead() Then ExitLoop
+;~ 			$distance = ComputeDistance(Agent_GetAgentInfo($enemy, 'X'), Agent_GetAgentInfo($enemy, 'Y'), Agent_GetAgentInfo(-2, 'X'), Agent_GetAgentInfo(-2, 'Y'))
+;~ 			If $distance < $range And $enemy <> 0 And Not GetPartyDead() Then
+;~ 				FightEx($range)
+;~ 			EndIf
+;~ 		EndIf
+
+;~ 		Other_RndSleep(250)
+
+;~ 		If GetPartyDead() Then ExitLoop
+;~ 		$coords[0] = Agent_GetAgentInfo(-2, 'X')
+;~ 		$coords[1] = Agent_GetAgentInfo(-2, 'Y')
+;~ 		If $oldCoords[0] = $coords[0] And $oldCoords[1] = $coords[1] And Not GetPartyDead() Then
+;~ 			$iBlocked += 1
+;~ 			MoveTo($coords[0], $coords[1], 300)
+;~ 			Other_RndSleep(350)
+;~ 			If GetPartyDead() Then ExitLoop
+;~ 			Map_Move($aX, $aY)
+;~ 		EndIf
+
+;~ 	Until ComputeDistance($coords[0], $coords[1], $aX, $aY) < 250 Or $iBlocked > 20 Or GetPartyDead() Or TimerDiff($TimerToKill) > 180000
+;~ EndFunc   ;==>AggroMoveToEx
+
+;~ Func FightEx($range)
+;~ 	If GetPartyDead() Then Return
+;~ 	Local $target
+;~ 	Local $distance
+;~ 	Local $useSkill
+;~ 	Local $energy
+;~ 	Local $lastId = 99999, $coordinate[2], $timer
+;~ 	Out("Engaging in combat...")
+;~ 		Do
+;~ 			If GetNumberOfFoesInRangeOfAgent(-2, 1700) = 0 Then Exitloop
+;~ 			If TimerDiff($TimerToKill) > 180000 Then Exitloop
+;~ 			If GetPartyDead() Then ExitLoop
+;~ 			$target = GetNearestEnemyToAgent(-2,1700,$GC_I_AGENT_TYPE_LIVING,1,"EnemyFilter")
+;~ 			If GetPartyDead() Then ExitLoop
+;~ 			$distance = ComputeDistance(Agent_GetAgentInfo($target, 'X'),Agent_GetAgentInfo($target, 'Y'),Agent_GetAgentInfo(-2, 'X'),Agent_GetAgentInfo(-2, 'Y'))
+;~ 			If $target <> 0 AND $distance < $range And Not GetPartyDead() Then
+;~ 				If TimerDiff($TimerToKill) > 180000 Then Exitloop
+;~ 				If Agent_GetAgentInfo($target, 'ID') <> $lastId Then
+;~ 					If GetPartyDead() Then ExitLoop
+;~ 					Agent_ChangeTarget($target)
+;~ 					Other_RndSleep(150)
+;~ 					Agent_CallTarget($target)
+;~ 					Other_RndSleep(150)
+;~ 					If GetPartyDead() Then ExitLoop
+;~ 					Agent_Attack($target)
+;~ 					$lastId = Agent_GetAgentInfo($target, 'ID')
+;~ 					$coordinate[0] = Agent_GetAgentInfo($target, 'X')
+;~ 					$coordinate[1] = Agent_GetAgentInfo($target, 'Y')
+;~ 					$timer = TimerInit()
+;~ 					$distance = ComputeDistance($coordinate[0],$coordinate[1],Agent_GetAgentInfo(-2, 'X'),Agent_GetAgentInfo(-2, 'Y'))
+;~ 					If GetPartyDead() Then ExitLoop
+;~ 					If $distance > 1100 Then
+;~ 						Do
+;~ 							If GetNumberOfFoesInRangeOfAgent(-2, 1700) = 0 Then Exitloop
+;~ 							If TimerDiff($TimerToKill) > 180000 Then Exitloop
+;~ 							If GetPartyDead() Then ExitLoop
+;~ 							Map_Move($coordinate[0],$coordinate[1])
+;~ 							Other_RndSleep(50)
+;~ 							If GetPartyDead() Then ExitLoop
+;~ 							$distance = ComputeDistance($coordinate[0],$coordinate[1],Agent_GetAgentInfo(-2, 'X'),Agent_GetAgentInfo(-2, 'Y'))
+;~ 						Until $distance < 1100 Or TimerDiff($timer) > 10000 Or GetPartyDead() Or TimerDiff($TimerToKill) > 180000
+;~ 					EndIf
+;~ 				EndIf
+;~ 				If TimerDiff($TimerToKill) > 180000 Then Exitloop
+;~ 				Other_RndSleep(150)
+;~ 				$timer = TimerInit()
+;~ 				If GetPartyDead() Then ExitLoop
+;~ 					Do
+;~ 						If GetNumberOfFoesInRangeOfAgent(-2, 1700) = 0 Then Exitloop
+;~ 						If TimerDiff($TimerToKill) > 180000 Then Exitloop
+;~ 						If GetPartyDead() Then ExitLoop
+;~ 						$target = GetNearestEnemyToAgent(-2,1700,$GC_I_AGENT_TYPE_LIVING,1,"EnemyFilter")
+;~ 						If GetPartyDead() Then ExitLoop
+;~ 						$distance = GetDistance($target, -2)
+;~ 						If $distance < 1250 And Not GetPartyDead() Then
+;~ 							If GetNumberOfFoesInRangeOfAgent(-2, 1700) = 0 Then Exitloop
+;~ 							If TimerDiff($TimerToKill) > 180000 Then Exitloop
+;~ 							For $i = 0 To 7
+;~ 								If GetNumberOfFoesInRangeOfAgent(-2, 1700) = 0 Then Exitloop
+;~ 								If TimerDiff($TimerToKill) > 180000 Then Exitloop
+;~ 								If GetPartyDead() Then ExitLoop
+;~ 								If Agent_GetAgentInfo($target,'IsDead') Then ExitLoop
+
+;~ 								$distance = GetDistance($target, -2)
+;~ 								If $distance > $range Then ExitLoop
+
+;~ 								$energy = GetEnergy(-2)
+
+;~ 								If IsRecharged($i+1) And $energy >= $skillCost[$i] And Not GetPartyDead() Then
+;~ 									If GetNumberOfFoesInRangeOfAgent(-2, 1700) = 0 Then Exitloop
+;~ 									If TimerDiff($TimerToKill) > 180000 Then Exitloop
+;~ 									$useSkill = $i + 1
+;~ 									UseSkillEx($useSkill, $target)
+;~ 									Other_RndSleep(150)
+;~ 									If GetPartyDead() Then ExitLoop
+;~ 									Agent_Attack($target)
+;~ 									Other_RndSleep(150)
+;~ 								EndIf
+;~ 								If TimerDiff($TimerToKill) > 180000 Then Exitloop
+;~ 								If $i = 7 Then $i = -1 ; change -1
+;~ 								If GetPartyDead() Then ExitLoop
+;~ 							Next
+;~ 						EndIf
+;~ 						If TimerDiff($TimerToKill) > 180000 Then Exitloop
+;~ 						If GetPartyDead() Then ExitLoop
+;~ 						Agent_Attack($target)
+;~ 						$distance = GetDistance($target, -2)
+;~ 					Until Agent_GetAgentInfo($target, 'HP') < 0.005 Or $distance > $range Or TimerDiff($timer) > 20000 Or GetPartyDead() Or TimerDiff($TimerToKill) > 180000
+;~ 			EndIf
+;~ 			If GetNumberOfFoesInRangeOfAgent(-2, 1700) = 0 Then Exitloop
+;~ 			If TimerDiff($TimerToKill) > 180000 Then Exitloop
+;~ 			If GetPartyDead() Then ExitLoop
+;~ 			$target = GetNearestEnemyToAgent(-2,1700,$GC_I_AGENT_TYPE_LIVING,1,"EnemyFilter")
+;~ 			If GetPartyDead() Then ExitLoop
+;~ 			$distance = GetDistance($target, -2)
+;~ 		Until Agent_GetAgentInfo($target, 'ID') = 0 Or $distance > $range Or GetPartyDead() Or TimerDiff($TimerToKill) > 180000
+
+;~ ;Uncomment the lines below, if you want to pick up items
+;~ 		If CountSlots() <> 0 And Not GetPartyDead() Then
+;~ 			If TimerDiff($TimerToKill) > 180000 Then Return
+;~ 			PickupLoot()
+;~ 		EndIf
+;~ EndFunc   ;==>FightEx
+
+Func AggroMoveToExFilter($aX, $aY, $range = 1700, $filterFunc = "EnemyFilter")
 
 	If GetPartyDead() Then Return
 	$TimerToKill = TimerInit()
@@ -180,13 +331,14 @@ Func AggroMoveToEx($aX, $aY, $range = 1700)
 		If GetPartyDead() Then ExitLoop
 		Other_RndSleep(250)
 		$oldCoords = $coords
-		If GetNumberOfFoesInRangeOfAgent(-2,1700,$GC_I_AGENT_TYPE_LIVING,1,"EnemyFilter") > 0 Then
+		If GetNumberOfFoesInRangeOfAgent(-2, 1700, $GC_I_AGENT_TYPE_LIVING, 1, $filterFunc) > 0 Then
 			If GetPartyDead() Then ExitLoop
-			$enemy = GetNearestEnemyToAgent(-2,1700,$GC_I_AGENT_TYPE_LIVING,1,"EnemyFilter")
+			$enemy = GetNearestEnemyToAgent(-2, 1700, $GC_I_AGENT_TYPE_LIVING, 1, $filterFunc)
 			If GetPartyDead() Then ExitLoop
 			$distance = ComputeDistance(Agent_GetAgentInfo($enemy, 'X'), Agent_GetAgentInfo($enemy, 'Y'), Agent_GetAgentInfo(-2, 'X'), Agent_GetAgentInfo(-2, 'Y'))
 			If $distance < $range And $enemy <> 0 And Not GetPartyDead() Then
-				Fight($range)
+				FightExFilter($range, $filterFunc)
+				If SurvivorMode() Then Return
 			EndIf
 		EndIf
 
@@ -204,60 +356,72 @@ Func AggroMoveToEx($aX, $aY, $range = 1700)
 		EndIf
 
 	Until ComputeDistance($coords[0], $coords[1], $aX, $aY) < 250 Or $iBlocked > 20 Or GetPartyDead() Or TimerDiff($TimerToKill) > 180000
-EndFunc   ;==>AggroMoveToEx
+EndFunc   ;==>AggroMoveToExFilter
 
-Func Fight($range)
+Func FightExFilter($range, $filterFunc = "EnemyFilter")
 	If GetPartyDead() Then Return
+	If SurvivorMode() Then Return
 	Local $target
 	Local $distance
 	Local $useSkill
 	Local $energy
 	Local $lastId = 99999, $coordinate[2], $timer
+	Out("Engaging in combat...")
 		Do
 			If GetNumberOfFoesInRangeOfAgent(-2, 1700) = 0 Then Exitloop
 			If TimerDiff($TimerToKill) > 180000 Then Exitloop
-			If GetPartyDead() Then ExitLoop
-			$target = GetNearestEnemyToAgent(-2,1700,$GC_I_AGENT_TYPE_LIVING,1,"EnemyFilter")
-			If GetPartyDead() Then ExitLoop
-			$distance = ComputeDistance(Agent_GetAgentInfo($target, 'X'),Agent_GetAgentInfo($target, 'Y'),Agent_GetAgentInfo(-2, 'X'),Agent_GetAgentInfo(-2, 'Y'))
+			If GetPartyDead() Then Exitloop
+			If SurvivorMode() Then Return
+			$target = GetNearestEnemyToAgent(-2, 1700, $GC_I_AGENT_TYPE_LIVING, 1, $filterFunc)
+			If GetPartyDead() Then Exitloop
+			If SurvivorMode() Then Return
+			$distance = ComputeDistance(Agent_GetAgentInfo($target, 'X'), Agent_GetAgentInfo($target, 'Y'), Agent_GetAgentInfo(-2, 'X'), Agent_GetAgentInfo(-2, 'Y'))
 			If $target <> 0 AND $distance < $range And Not GetPartyDead() Then
 				If TimerDiff($TimerToKill) > 180000 Then Exitloop
 				If Agent_GetAgentInfo($target, 'ID') <> $lastId Then
-					If GetPartyDead() Then ExitLoop
+					If GetPartyDead() Then Exitloop
+					If SurvivorMode() Then Return
 					Agent_ChangeTarget($target)
 					Other_RndSleep(150)
 					Agent_CallTarget($target)
 					Other_RndSleep(150)
-					If GetPartyDead() Then ExitLoop
+					If GetPartyDead() Then Exitloop
+					If SurvivorMode() Then Return
 					Agent_Attack($target)
 					$lastId = Agent_GetAgentInfo($target, 'ID')
 					$coordinate[0] = Agent_GetAgentInfo($target, 'X')
 					$coordinate[1] = Agent_GetAgentInfo($target, 'Y')
 					$timer = TimerInit()
-					$distance = ComputeDistance($coordinate[0],$coordinate[1],Agent_GetAgentInfo(-2, 'X'),Agent_GetAgentInfo(-2, 'Y'))
-					If GetPartyDead() Then ExitLoop
+					$distance = ComputeDistance($coordinate[0], $coordinate[1], Agent_GetAgentInfo(-2, 'X'), Agent_GetAgentInfo(-2, 'Y'))
+					If GetPartyDead() Then Exitloop
+					If SurvivorMode() Then Return
 					If $distance > 1100 Then
 						Do
 							If GetNumberOfFoesInRangeOfAgent(-2, 1700) = 0 Then Exitloop
 							If TimerDiff($TimerToKill) > 180000 Then Exitloop
-							If GetPartyDead() Then ExitLoop
-							Map_Move($coordinate[0],$coordinate[1])
+							If GetPartyDead() Then Exitloop
+							If SurvivorMode() Then Return
+							Map_Move($coordinate[0], $coordinate[1])
 							Other_RndSleep(50)
-							If GetPartyDead() Then ExitLoop
-							$distance = ComputeDistance($coordinate[0],$coordinate[1],Agent_GetAgentInfo(-2, 'X'),Agent_GetAgentInfo(-2, 'Y'))
+							If GetPartyDead() Then Exitloop
+							If SurvivorMode() Then Return
+							$distance = ComputeDistance($coordinate[0], $coordinate[1], Agent_GetAgentInfo(-2, 'X'), Agent_GetAgentInfo(-2, 'Y'))
 						Until $distance < 1100 Or TimerDiff($timer) > 10000 Or GetPartyDead() Or TimerDiff($TimerToKill) > 180000
 					EndIf
 				EndIf
 				If TimerDiff($TimerToKill) > 180000 Then Exitloop
 				Other_RndSleep(150)
 				$timer = TimerInit()
-				If GetPartyDead() Then ExitLoop
+				If GetPartyDead() Then Exitloop
+				If SurvivorMode() Then Return
 					Do
 						If GetNumberOfFoesInRangeOfAgent(-2, 1700) = 0 Then Exitloop
 						If TimerDiff($TimerToKill) > 180000 Then Exitloop
-						If GetPartyDead() Then ExitLoop
-						$target = GetNearestEnemyToAgent(-2,1700,$GC_I_AGENT_TYPE_LIVING,1,"EnemyFilter")
-						If GetPartyDead() Then ExitLoop
+						If GetPartyDead() Then Exitloop
+						If SurvivorMode() Then Return
+						$target = GetNearestEnemyToAgent(-2, 1700, $GC_I_AGENT_TYPE_LIVING, 1, $filterFunc)
+						If GetPartyDead() Then Exitloop
+						If SurvivorMode() Then Return
 						$distance = GetDistance($target, -2)
 						If $distance < 1250 And Not GetPartyDead() Then
 							If GetNumberOfFoesInRangeOfAgent(-2, 1700) = 0 Then Exitloop
@@ -265,8 +429,9 @@ Func Fight($range)
 							For $i = 0 To 7
 								If GetNumberOfFoesInRangeOfAgent(-2, 1700) = 0 Then Exitloop
 								If TimerDiff($TimerToKill) > 180000 Then Exitloop
-								If GetPartyDead() Then ExitLoop
-								If Agent_GetAgentInfo($target,'IsDead') Then ExitLoop
+								If GetPartyDead() Then Exitloop
+								If SurvivorMode() Then Return
+								If Agent_GetAgentInfo($target, 'IsDead') Then ExitLoop
 
 								$distance = GetDistance($target, -2)
 								If $distance > $range Then ExitLoop
@@ -279,35 +444,39 @@ Func Fight($range)
 									$useSkill = $i + 1
 									UseSkillEx($useSkill, $target)
 									Other_RndSleep(150)
-									If GetPartyDead() Then ExitLoop
+									If GetPartyDead() Then Exitloop
+									If SurvivorMode() Then Return
 									Agent_Attack($target)
 									Other_RndSleep(150)
 								EndIf
 								If TimerDiff($TimerToKill) > 180000 Then Exitloop
 								If $i = 7 Then $i = -1 ; change -1
-								If GetPartyDead() Then ExitLoop
+								If GetPartyDead() Then Exitloop
+								If SurvivorMode() Then Return
 							Next
 						EndIf
 						If TimerDiff($TimerToKill) > 180000 Then Exitloop
-						If GetPartyDead() Then ExitLoop
+						If GetPartyDead() Then Exitloop
+						If SurvivorMode() Then Return
 						Agent_Attack($target)
 						$distance = GetDistance($target, -2)
 					Until Agent_GetAgentInfo($target, 'HP') < 0.005 Or $distance > $range Or TimerDiff($timer) > 20000 Or GetPartyDead() Or TimerDiff($TimerToKill) > 180000
 			EndIf
 			If GetNumberOfFoesInRangeOfAgent(-2, 1700) = 0 Then Exitloop
 			If TimerDiff($TimerToKill) > 180000 Then Exitloop
-			If GetPartyDead() Then ExitLoop
-			$target = GetNearestEnemyToAgent(-2,1700,$GC_I_AGENT_TYPE_LIVING,1,"EnemyFilter")
-			If GetPartyDead() Then ExitLoop
+			If GetPartyDead() Then Exitloop
+			If SurvivorMode() Then Return
+			$target = GetNearestEnemyToAgent(-2, 1700, $GC_I_AGENT_TYPE_LIVING, 1, $filterFunc)
+			If GetPartyDead() Then Exitloop
+			If SurvivorMode() Then Return
 			$distance = GetDistance($target, -2)
 		Until Agent_GetAgentInfo($target, 'ID') = 0 Or $distance > $range Or GetPartyDead() Or TimerDiff($TimerToKill) > 180000
 
-;Uncomment the lines below, if you want to pick up items
 		If CountSlots() <> 0 And Not GetPartyDead() Then
 			If TimerDiff($TimerToKill) > 180000 Then Return
 			PickupLoot()
 		EndIf
-EndFunc   ;==>Fight
+EndFunc   ;==>FightExFilter
 
 Func GetPartyDead()
 	; Party is dead, if player is dead and no more heroes have a rez skill or all heroes with rez skills are also dead
@@ -322,9 +491,21 @@ Func GetPartyDead()
 	; If those heroes are all dead, check if you as player are also dead
 	If Not GetIsDead(-2) Then Return False
 
+	; Only for follower bot - Check if leader is dead
+	If Not GetIsDead(GetMemberAgentID(1)) Then Return False
+
 	; If all area dead, return True
 	Return True
 EndFunc ;==> GetPartyDead
+
+Func SurvivorMode()
+	If $Survivor = True Then
+		If Agent_GetAgentInfo(-2, 'CurrentHP') <= Agent_GetAgentInfo(-2, 'MaxHP') * 0.40 Then
+			Return True
+		EndIf
+	EndIf
+	Return False
+EndFunc ;==> SurvivorMode
 
 Func CacheHeroesWithRez()
 	; Go over all heroes and find all Heroes with rez skills
@@ -340,6 +521,14 @@ Func GetPartyDefeated()
 	; Party is defeated, when you die, while Malus is at 60%
 	Return Party_GetPartyContextInfo("IsDefeated")
 EndFunc ;==> GetPartyDefeated
+
+Func GetPartySize()
+    Local $aParty = Party_GetMyPartyInfo("ArrayPlayerPartyMemberSize")
+    Local $aHero = Party_GetMyPartyInfo("ArrayHeroPartyMemberSize")
+    Local $aHench = Party_GetMyPartyInfo("ArrayHenchmanPartyMemberSize")
+    
+    Return $aParty + $aHero + $aHench
+EndFunc   ;==> GetPartySize
 
 Func GetEffectTimeRemainingEx($aAgent = -2, $aSkillID = 0, $aInfo = "TimeRemaining")
     Return Agent_GetAgentEffectInfo($aAgent, $aSkillID, $aInfo)
@@ -432,6 +621,39 @@ EndFunc	;==>GetNumberOfWardenSeasonsInRangeOfAgent
 Func GetNearestNPCToAgent($aAgentID = -2, $aRange = 1320, $aType = $GC_I_AGENT_TYPE_LIVING, $aReturnMode = 1, $aCustomFilter = "NPCFilter")
 	Return GetAgents($aAgentID, $aRange, $aType, $aReturnMode, $aCustomFilter)
 EndFunc	;==>GetNearestNPCToAgent
+
+Func GetMemberAgentID($aPartyMember)
+    If $aPartyMember < 1 Then Return 0
+
+    Local $myLogin = Agent_GetAgentInfo(-2, "LoginNumber")
+    Local $playerCount = Party_GetMyPartyInfo("ArrayPlayerPartyMemberSize")
+    If $playerCount < 1 Then Return 0
+
+    Local $pos = 0
+
+    For $i = 1 To $playerCount
+        $pos += 1
+        If $pos <> $aPartyMember Then ContinueLoop
+
+        Local $login = Party_GetMyPartyPlayerMemberInfo($i, "LoginNumber")
+        If $login = 0 Then Return 0
+
+        If $login = $myLogin Then Return Agent_GetMyID()
+
+        Local $agents = Agent_GetAgentArray(0xDB)
+        If Not IsArray($agents) Or $agents[0] = 0 Then Return 0
+
+        For $j = 1 To $agents[0]
+            If Agent_GetAgentInfo($agents[$j], "LoginNumber") = $login Then
+                Return Agent_GetAgentInfo($agents[$j], "ID")
+            EndIf
+        Next
+
+        Return 0
+    Next
+
+    Return 0
+EndFunc   ;==>GetMemberAgentID
 #EndRegion
 
 #Region Skills
@@ -477,9 +699,43 @@ Func CountSlots()
 	Return $temp
 EndFunc ; Counts open slots in your Inventory
 
+; Returns the total quantity of items with the given ModelID in bags 1-4
+Func GetItemCountByModelID($targetModelID)
+    Local $totalCount = 0
+    Local $itemModelID
+    Local $itemQuantity
+    Local $itemPtr
+
+    For $bag = 1 To 4
+        Local $bagPtr = Item_GetBagPtr($bag)
+        If $bagPtr = 0 Then ContinueLoop  ; Skip if bag doesn't exist
+
+        Local $slots = Item_GetBagInfo($bagPtr, 'Slots')
+        For $slot = 1 To $slots
+            $itemPtr = Item_GetItemBySlot($bag, $slot)
+            If $itemPtr = 0 Then ContinueLoop
+
+            ; Skip empty/invalid items
+            If Item_GetItemInfoByPtr($itemPtr, "ItemID") = 0 Then ContinueLoop
+
+            $itemModelID = Item_GetItemInfoByPtr($itemPtr, "ModelID")
+            If $itemModelID = $targetModelID Then
+                $itemQuantity = Item_GetItemInfoByPtr($itemPtr, "Quantity")
+                $totalCount += $itemQuantity
+            EndIf
+        Next
+    Next
+
+    Return $totalCount
+EndFunc   ;==>GetItemCountByModelID
+
 Func PickUpLoot()
-    Local $lAgentArray = Item_GetItemArray()
-    Local $maxitems = $lAgentArray[0]
+    ;Local $lAgentArray = Item_GetItemArray()
+    ;Local $maxitems = $lAgentArray[0]
+
+	Local $lAgentArray = Item_GetItemArray()
+	Local $maxitems = IsArray($lAgentArray) ? $lAgentArray[0] : 0
+
 
 	If GetPartyDead() Then Return
     For $i = 1 To $maxitems
@@ -517,22 +773,27 @@ Func CanPickUp($aItemPtr)
 		If (($aExtraID == $ITEM_ExtraID_BlackDye) Or ($aExtraID == $ITEM_ExtraID_WhiteDye)) Then ; only pick white and black ones
 			Return True
 		EndIf
+		Return True ; pick all dyes
 	ElseIf $lRarity == $RARITY_Gold Then ; gold items
-		$GoldItemsGained += 1
-    	GUICtrlSetData($GoldItemsLabel, "Gold Items: " & $GoldItemsGained)
+		;$GoldItemsGained += 1
+    	;GUICtrlSetData($GoldItemsLabel, "Gold Items: " & $GoldItemsGained)
 		Return True
 	ElseIf $lRarity == $RARITY_Purple Then ; purple items
-		Return False
-	ElseIf $lModelID == $ITEM_ID_Lockpicks Then
-		$LockpicksGained += 1
-		GUICtrlSetData($LockpickLabel, "Lockpicks: " & $LockpicksGained)
-		Return True ; Lockpicks
-	ElseIf $lModelID == 22269 Then	; Cupcakes
 		Return True
+	ElseIf $lRarity == $RARITY_Blue Then ; blue items
+		Return True
+	ElseIf $lModelID == $ITEM_ID_Lockpicks Then
+		;$LockpicksGained += 1
+		;GUICtrlSetData($LockpickLabel, "Lockpicks: " & $LockpicksGained)
+		Return True
+	ElseIf $lModelID == 22269 Then	; Cupcakes
+		Return False 
 	ElseIf IsPcon($aItemPtr) Then ; ==== Pcons ==== or all event items
 		Return False
 	ElseIf IsRareMaterial($aItemPtr) Then	; rare Mats
-		Return True	
+		Return False
+	ElseIf $lModelID == 2994 Then	; Red Iris
+		Return False
 	Else
 		Return False
 	EndIf
@@ -2923,7 +3184,7 @@ $RezSkillIDs[14] = 1778 ; Signet of Return
 Global $heroNumberWithRez[0]
 
 ;~ Summoning Stones
-Global $SummoningStone[19]
+Global $SummoningStone[20]
 $SummoningStone[0] = 37810	; Legionnaire 
 $SummoningStone[1] = 30209	; Tengu
 $SummoningStone[2] = 30210	; Imperial Guard
@@ -2943,6 +3204,7 @@ $SummoningStone[15] = 30964	; Gelatinous
 $SummoningStone[16] = 30962	; Arctic
 $SummoningStone[17] = 31022	; Mischievous
 $SummoningStone[18] = 31023	; Frosty
+$SummoningStone[19] = 30847	; Igneous
 
 ;~ Conset
 Global $Conset[3]
@@ -3039,7 +3301,6 @@ Global $Array_pscon[39]=[910, 5585, 6366, 6375, 22190, 24593, 28435, 30855, 3114
 
 Global $PIC_MATS[26][2] = [["Fur Square", 941],["Bolt of Linen", 926],["Bolt of Damask", 927],["Bolt of Silk", 928],["Glob of Ectoplasm", 930],["Steel of Ignot", 949],["Deldrimor Steel Ingot", 950],["Monstrous Claws", 923],["Monstrous Eye", 931],["Monstrous Fangs", 932],["Rubies", 937],["Sapphires", 938],["Diamonds", 935],["Onyx Gemstones", 936],["Lumps of Charcoal", 922],["Obsidian Shard", 945],["Tempered Glass Vial", 939],["Leather Squares", 942],["Elonian Leather Square", 943],["Vial of Ink", 944],["Rolls of Parchment", 951],["Rolls of Vellum", 952],["Spiritwood Planks", 956],["Amber Chunk", 6532],["Jadeite Shard", 6533]]
 
-
 Global $Array_Store_ModelIDs460[147] = [474, 476, 486, 522, 525, 811, 819, 822, 835, 610, 2994, 19185, 22751, 4629, 24630, 4631, 24632, 27033, 27035, 27044, 27046, 27047, 7052, 5123 _
 		, 1796, 21797, 21798, 21799, 21800, 21801, 21802, 21803, 21804, 1805, 910, 2513, 5585, 6049, 6366, 6367, 6375, 15477, 19171, 22190, 24593, 28435, 30855, 31145, 31146, 35124, 36682 _
 		, 6376 , 6368 , 6369 , 21809 , 21810, 21813, 29436, 29543, 36683, 4730, 15837, 21490, 22192, 30626, 30630, 30638, 30642, 30646, 30648, 31020, 31141, 31142, 31144, 1172, 15528 _
@@ -3056,11 +3317,13 @@ Global $GH_ID_Frozen_Isle = 176
 Global $GH_ID_Nomads_Isle = 177
 Global $GH_ID_Druids_Isle = 178
 Global $GH_ID_Isle_Of_The_Dead = 179
+
 ;~ Factions
 Global $GH_ID_Isle_Of_Weeping_Stone = 275
 Global $GH_ID_Isle_Of_Jade = 276
 Global $GH_ID_Imperial_Isle = 359
 Global $GH_ID_Isle_Of_Meditation = 360
+
 ;~ Nightfall
 Global $GH_ID_Uncharted_Isle = 529
 Global $GH_ID_Isle_Of_Wurms = 530
@@ -3084,7 +3347,6 @@ Global $IsleOfWurms = False
 Global $CorruptedIsle = False
 Global $IsleOfSolitude = False
 
-
 ; ================ END CONFIGURATION ================
 
 ; ==== Bot global variables ====
@@ -3100,19 +3362,20 @@ Global $BAG_SLOTS[18] = [0, 20, 5, 10, 10, 20, 41, 12, 20, 20, 20, 20, 20, 20, 2
 
 ;~ Any pcons you want to use during a run
 Global $pconsCupcake_slot[2]
-Global $useCupcake = False ; set it on true and he use it
+Global $useCupcake = False ; Set it on true and it's used
 
 ;~ Hero IDs
 Global Enum $HERO_ID_Norgu = 1, $HERO_ID_Goren, $HERO_ID_Tahlkora, $HERO_ID_Master, $HERO_ID_Jin = 5, $HERO_ID_Koss, $HERO_ID_Dunkoro, $HERO_ID_Sousuke, $HERO_ID_Melonni, $HERO_ID_Zhed = 10, $HERO_ID_Morgahn, $HERO_ID_Margrid, $HERO_ID_Zenmai, $HERO_ID_Olias, $HERO_ID_Razah = 15, $HERO_ID_Mox, $HERO_ID_Keiran, $HERO_ID_Jora, $HERO_ID_Brandor, $HERO_ID_Anton = 20, $HERO_ID_Livia, $HERO_ID_Hayda, $HERO_ID_Kahmu, $HERO_ID_Gwen, $HERO_ID_Xandra = 25, $HERO_ID_Vekk, $HERO_ID_Ogden, $HERO_ID_MERCENARY_1, $HERO_ID_MERCENARY_2, $HERO_ID_MERCENARY_3 = 30, $HERO_ID_MERCENARY_4, $HERO_ID_MERCENARY_5, $HERO_ID_MERCENARY_6, $HERO_ID_MERCENARY_7, $HERO_ID_MERCENARY_8 = 35, $HERO_ID_Miku , $HERO_ID_Zei_Ri
 
-; Identification and Salvaging Stuff
+;~ Identification and Salvaging Stuff
 Global Const $SupIDKit = 5899
 Global Const $ExpertSalvKit = 2991
 Global Const $Ectoplasm_ID = 930
 
 ; ==== Build ====
 Global Const $SkillBarTemplate = "Owhj0JgsITXTfTlT+gDgMTKTQTA"
-; declare skill numbers to make the code WAY more readable (UseSkill($sf) is better than UseSkill(2))
+
+;~ Declare skill numbers to make the code WAY more readable (UseSkill($sf) is better than UseSkill(2))
 Global Const $sos = 1
 Global Const $pain = 2
 Global Const $bs = 3
@@ -3121,7 +3384,8 @@ Global Const $ss = 5
 Global Const $siph = 6
 Global Const $sbs = 7
 Global Const $aou = 8
-; Store skills energy cost
+
+;~ Store skills energy cost
 Global $skillCost[9]
 $skillCost[$sos] = 0
 $skillCost[$pain] = 5
@@ -3131,7 +3395,6 @@ $skillCost[$ss] = 5
 $skillCost[$siph] = 5
 $skillCost[$sbs] = 5
 $skillCost[$aou] = 5
-
 
 ;~ Outpost - Map
 Global Const $MAP_ID_MountQinkai = 200
@@ -3144,7 +3407,7 @@ Global $checkcomplete = 0
 Global $inventorytrigger = 0
 Global $RezShrine
 
-;~ Koordinates
+;~ Coordinates
 Global $coords[2]
 Global $X
 Global $Y
@@ -3154,7 +3417,7 @@ Global Const $MantisMender = 3714
 Global Const $WardenSummer = 3737
 Global Const $WardenSeason = 3738
 
-;~ Timer -> For when killing takes too long or stucked enemies
+;~ Timer -> For when killing takes too long or enemies are stuck
 Global $exittimer = 0
 Global $runcounter = 1
 Global $TimerToKill = 0
@@ -3163,13 +3426,21 @@ Global $Rendering = True
 #EndRegion
 
 #Region Gui
-;~ Description: Print to console with timestamp
+;Description: Print to console with timestamp
 Func Out($TEXT)
     Local $TEXTLEN = StringLen($TEXT)
     Local $CONSOLELEN = _GUICtrlEdit_GetTextLen($g_h_EditText)
     If $TEXTLEN + $CONSOLELEN > 30000 Then GUICtrlSetData($g_h_EditText, StringRight(_GUICtrlEdit_GetText($g_h_EditText), 30000 - $TEXTLEN - 1000))
 	_GUICtrlRichEdit_SetCharColor($g_h_EditText, $COLOR_BLACK)
-    _GUICtrlEdit_AppendText($g_h_EditText, @CRLF & $TEXT)
+    _GUICtrlEdit_AppendText($g_h_EditText, @CRLF & "[" & @HOUR & ":" & @MIN & ":" & @SEC & "] " & $TEXT)
     _GUICtrlEdit_Scroll($g_h_EditText, 1)
+EndFunc
+
+Func FormatElapsedTime($timerHandle)
+    Local $elapsedSeconds = TimerDiff($timerHandle) / 1000
+    Local $hours = Int($elapsedSeconds / 3600)
+    Local $minutes = Int(Mod($elapsedSeconds, 3600) / 60)
+    Local $seconds = Mod($elapsedSeconds, 60)
+    Return StringFormat("%02d:%02d:%02d", $hours, $minutes, $seconds)
 EndFunc
 #EndRegion
