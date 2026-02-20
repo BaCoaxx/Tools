@@ -1,4 +1,4 @@
-; Precomputed XP needed for each level (only this array is needed)
+; Precomputed XP needed for each level
 Global $g_aXPNeeded[21] = [ _
     0, ; Dummy value for index 0 (unused)
     2000, ; Level 1 → 2
@@ -50,8 +50,8 @@ Func UpdateProgressBar()
         EndIf
     EndIf
 
-    ; Update progress bar
-    ProgressSet(Round($ProgressPercent, 1), Round($ProgressPercent, 1) & "%")
+    ; Update the progress bar control
+    GUICtrlSetData($Progress, Round($ProgressPercent))
 EndFunc
 
 ; Register the function to run frequently
