@@ -3,6 +3,7 @@
 #include "../../API/Plugins/UtilityAI/_UtilityAI.au3"
 #include "GwAu3_AddOns.au3"
 #include "FollowBehind.au3"
+#include "ChatListener.au3"
 
 #cs
 +---------------------------------------------------------------+
@@ -62,7 +63,6 @@ While 1
     If Not $Bot_Core_Initialized Then
         ContinueLoop
     Else
-        CallBack_SetEvent("OnChatMessage")
         ExitLoop
     EndIf
     Sleep(100)
@@ -73,6 +73,11 @@ While Not $BotRunning
 WEnd
 
 While $BotRunning
+    Local $l_s_Latest = ChatListener_GetLatestMessage()
+    If $l_s_Latest <> "" Then
+        ProcessChatCommand($l_s_Latest)
+    EndIf
+
     Select
         Case $Action = 1 ; Follow command
             GetPartyLeaderAndFollowerData()
@@ -90,6 +95,31 @@ While $BotRunning
     EndSelect
     Sleep(500)
 WEnd
+
+Func ProcessChatCommand($message)
+    If StringInStr($message, "Follow") Then
+        $Action = 1
+        LogInfo("Executing command: Follow")
+        LogInfo("Following the party leader...")
+        Return
+    EndIf
+    If StringInStr($message, "Wait") Then
+        $Action = 2
+        LogInfo("Executing command: Wait")
+        LogInfo("Stopping movement...waiting for further instructions.")
+        Return
+    EndIf
+    If StringInStr($message, "Bless") Then
+        $Action = 3
+        LogInfo("Executing command: Bless")
+        Return
+    EndIf
+    If StringInStr($message, "Dialog") Then
+        $Action = 4
+        LogInfo("Executing command: Dialog")
+        Return
+    EndIf
+EndFunc
 
 Func OnChatMessage($channel, $sender, $message, $guildtag)
     If $channel = "Team" Then
