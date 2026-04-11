@@ -1,4 +1,6 @@
 #include <GUIConstantsEx.au3>
+#include <WindowsConstants.au3>
+#include <EditConstants.au3>
 
 ; Initialize TCP services
 TCPStartup()
@@ -6,53 +8,72 @@ TCPStartup()
 Local $sIPAddress = "127.0.0.1"
 Local $iPort = 65432
 
-; Connect to the Python Walkie-Talkie Server
+; Create the GUI
+Local $hGUI = GUICreate("AutoIt Client 1 - Walkie Talkie", 400, 300)
+
+; Create a multi-line Edit control to act as our "Console" (Read-Only, Vertical Scrollbar)
+Local $idConsole = GUICtrlCreateEdit("", 10, 10, 380, 200, BitOR($ES_READONLY, $WS_VSCROLL, $ES_AUTOVSCROLL))
+GUICtrlSetBkColor($idConsole, 0x000000) ; Black background
+GUICtrlSetColor($idConsole, 0x00FF00)   ; Green text
+
+; Input box for variable change
+GUICtrlCreateLabel("Variable to send:", 10, 223, 100, 20)
+Local $idInput = GUICtrlCreateInput("Hello from Client 1", 110, 220, 190, 25)
+
+; Send and Close Buttons
+Local $idBtnSend = GUICtrlCreateButton("Send", 310, 220, 80, 25)
+Local $idBtnClose = GUICtrlCreateButton("Close", 310, 260, 80, 25)
+
+GUISetState(@SW_SHOW)
+
+; Try to connect
 Local $iSocket = TCPConnect($sIPAddress, $iPort)
 If @error Then
-    MsgBox(16, "Connection Error", "Could not connect to Python server. Please ensure walkie_talkie_server.py is running first.")
-    Exit
+    GUICtrlSetData($idConsole, "[System] Could not connect to Python server." & @CRLF, 1) ; 1 = Append to end
+Else
+    GUICtrlSetData($idConsole, "[System] Connected to Python Walkie-Talkie Server!" & @CRLF, 1)
 EndIf
-
-; Create a simple GUI to change and view variables
-GUICreate("AutoIt Client 1 - Walkie Talkie", 350, 150)
-GUICtrlCreateLabel("Variable to send:", 10, 13, 100, 20)
-Local $idInput = GUICtrlCreateInput("Hello from Client 1!", 110, 10, 150, 20)
-Local $idBtnSend = GUICtrlCreateButton("Send", 270, 9, 70, 22)
-
-GUICtrlCreateLabel("Variable received:", 10, 50, 100, 20)
-Local $idLabelRecv = GUICtrlCreateLabel("Waiting for data...", 110, 50, 230, 80)
-GUISetState(@SW_SHOW)
 
 ; Main Loop
 While 1
     Local $iMsg = GUIGetMsg()
     
     Select
-        Case $iMsg = $GUI_EVENT_CLOSE
+        Case $iMsg = $GUI_EVENT_CLOSE Or $iMsg = $idBtnClose
             ExitLoop
             
         Case $iMsg = $idBtnSend
-            ; Read the variable from the input box
-            Local $sDataToSend = GUICtrlRead($idInput)
-            ; Send it to the Python server
-            TCPSend($iSocket, "[Client 1] " & $sDataToSend)
+            If $iSocket <> -1 Then
+                Local $sDataToSend = GUICtrlRead($idInput)
+                If $sDataToSend <> "" Then
+                    TCPSend($iSocket, $sDataToSend)
+                    ; Show what we just sent in our own console
+                    GUICtrlSetData($idConsole, "[Sent] " & $sDataToSend & @CRLF, 1)
+                    GUICtrlSetData($idInput, "") ; Clear the input box after sending
+                EndIf
+            Else
+                GUICtrlSetData($idConsole, "[Error] Not connected to server!" & @CRLF, 1)
+            EndIf
     EndSelect
 
     ; Constantly check for incoming data from the Python Server
-    Local $sRecvData = TCPRecv($iSocket, 2048)
-    
-    ; If @error is set, the server disconnected
-    If @error Then
-        MsgBox(16, "Disconnected", "Lost connection to the Python server.")
-        ExitLoop
-    EndIf
-    
-    ; If we received data, update the GUI
-    If $sRecvData <> "" Then
-        GUICtrlSetData($idLabelRecv, $sRecvData)
+    If $iSocket <> -1 Then
+        Local $sRecvData = TCPRecv($iSocket, 2048)
+        
+        ; If @error is set, the server disconnected
+        If @error Then
+            GUICtrlSetData($idConsole, "[System] Lost connection to the server." & @CRLF, 1)
+            TCPCloseSocket($iSocket)
+            $iSocket = -1
+        EndIf
+        
+        ; If we received data, append it to the console
+        If $sRecvData <> "" Then
+            GUICtrlSetData($idConsole, "[Received] " & $sRecvData & @CRLF, 1)
+        EndIf
     EndIf
 WEnd
 
 ; Cleanup
-TCPCloseSocket($iSocket)
+If $iSocket <> -1 Then TCPCloseSocket($iSocket)
 TCPShutdown()
