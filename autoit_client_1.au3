@@ -22,7 +22,9 @@ Local $idInput = GUICtrlCreateInput("Hello from Client 1", 110, 220, 190, 25)
 
 ; Send and Close Buttons
 Local $idBtnSend = GUICtrlCreateButton("Send", 310, 220, 80, 25)
-Local $idBtnClose = GUICtrlCreateButton("Close", 310, 260, 80, 25)
+Local $idBtnFollow = GUICtrlCreateButton("Follow", 110, 255, 80, 25)
+Local $idBtnWait = GUICtrlCreateButton("Wait", 200, 255, 80, 25)
+Local $idBtnClose = GUICtrlCreateButton("Close", 310, 255, 80, 25)
 
 GUISetState(@SW_SHOW)
 
@@ -51,6 +53,22 @@ While 1
                     GUICtrlSetData($idConsole, "[Sent] " & $sDataToSend & @CRLF, 1)
                     GUICtrlSetData($idInput, "") ; Clear the input box after sending
                 EndIf
+            Else
+                GUICtrlSetData($idConsole, "[Error] Not connected to server!" & @CRLF, 1)
+            EndIf
+            
+        Case $iMsg = $idBtnFollow
+            If $iSocket <> -1 Then
+                TCPSend($iSocket, "Follow")
+                GUICtrlSetData($idConsole, "[Command Sent] Follow" & @CRLF, 1)
+            Else
+                GUICtrlSetData($idConsole, "[Error] Not connected to server!" & @CRLF, 1)
+            EndIf
+            
+        Case $iMsg = $idBtnWait
+            If $iSocket <> -1 Then
+                TCPSend($iSocket, "Wait")
+                GUICtrlSetData($idConsole, "[Command Sent] Wait" & @CRLF, 1)
             Else
                 GUICtrlSetData($idConsole, "[Error] Not connected to server!" & @CRLF, 1)
             EndIf
