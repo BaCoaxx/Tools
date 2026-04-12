@@ -8,23 +8,49 @@ TCPStartup()
 Local $sIPAddress = "127.0.0.1"
 Local $iPort = 65432
 
-; Create the GUI
-Local $hGUI = GUICreate("AutoIt Client 1 - Walkie Talkie", 400, 300)
+; Create the GUI - Futuristic Theme
+Local $hGUI = GUICreate("NEURAL LINK: Terminal Alpha", 420, 320, -1, -1, BitOR($WS_POPUP, $WS_CAPTION, $WS_SYSMENU))
+GUISetBkColor(0x0A0A0A) ; Deep dark gray/black background
+
+; Set global font to something monospaced/techy
+GUISetFont(9, 600, 0, "Consolas")
+
+; Top decorative header
+Local $idHeader = GUICtrlCreateLabel("[ SYS.UPLINK ESTABLISHED ]", 10, 5, 400, 20)
+GUICtrlSetColor($idHeader, 0x00FF00) ; Neon Green
+GUICtrlSetBkColor($idHeader, $GUI_BKCOLOR_TRANSPARENT)
 
 ; Create a multi-line Edit control to act as our "Console" (Read-Only, Vertical Scrollbar)
-Local $idConsole = GUICtrlCreateEdit("", 10, 10, 380, 200, BitOR($ES_READONLY, $WS_VSCROLL, $ES_AUTOVSCROLL))
-GUICtrlSetBkColor($idConsole, 0x000000) ; Black background
-GUICtrlSetColor($idConsole, 0x00FF00)   ; Green text
+Local $idConsole = GUICtrlCreateEdit("", 10, 30, 400, 190, BitOR($ES_READONLY, $WS_VSCROLL, $ES_AUTOVSCROLL))
+GUICtrlSetBkColor($idConsole, 0x111111) ; Darker grey background
+GUICtrlSetColor($idConsole, 0x33FF33)   ; Cyber green text
+GUICtrlSetFont($idConsole, 9, 400, 0, "Consolas")
 
 ; Input box for variable change
-GUICtrlCreateLabel("Variable to send:", 10, 223, 100, 20)
-Local $idInput = GUICtrlCreateInput("Hello from Client 1", 110, 220, 190, 25)
+Local $idLblInput = GUICtrlCreateLabel("> DATA STREAM:", 10, 233, 110, 20)
+GUICtrlSetColor($idLblInput, 0x00FFFF) ; Cyan
+GUICtrlSetBkColor($idLblInput, $GUI_BKCOLOR_TRANSPARENT)
 
-; Send and Close Buttons
-Local $idBtnSend = GUICtrlCreateButton("Send", 310, 220, 80, 25)
-Local $idBtnFollow = GUICtrlCreateButton("Follow", 110, 255, 80, 25)
-Local $idBtnWait = GUICtrlCreateButton("Wait", 200, 255, 80, 25)
-Local $idBtnClose = GUICtrlCreateButton("Close", 310, 255, 80, 25)
+Local $idInput = GUICtrlCreateInput("INITIATE_HANDSHAKE", 120, 230, 190, 22)
+GUICtrlSetBkColor($idInput, 0x1A1A1A)
+GUICtrlSetColor($idInput, 0x00FFFF) ; Cyan text
+
+; Send and Close Buttons - Flat and Colored
+Local $idBtnSend = GUICtrlCreateButton("TRANSMIT", 320, 230, 90, 22)
+GUICtrlSetBkColor($idBtnSend, 0x004400)
+GUICtrlSetColor($idBtnSend, 0x33FF33)
+
+Local $idBtnFollow = GUICtrlCreateButton("CMD: FOLLOW", 120, 265, 90, 22)
+GUICtrlSetBkColor($idBtnFollow, 0x004444)
+GUICtrlSetColor($idBtnFollow, 0x00FFFF)
+
+Local $idBtnWait = GUICtrlCreateButton("CMD: WAIT", 220, 265, 90, 22)
+GUICtrlSetBkColor($idBtnWait, 0x444400)
+GUICtrlSetColor($idBtnWait, 0xFFFF00)
+
+Local $idBtnClose = GUICtrlCreateButton("ABORT", 320, 265, 90, 22)
+GUICtrlSetBkColor($idBtnClose, 0x440000)
+GUICtrlSetColor($idBtnClose, 0xFF3333)
 
 GUISetState(@SW_SHOW)
 

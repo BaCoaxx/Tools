@@ -48,8 +48,8 @@ def server_loop():
         is_running = True
         
         # Update GUI status safely
-        root.after(0, lambda: lbl_status.config(text="Status: Running", fg="green"))
-        root.after(0, lambda: btn_start.config(state=tk.DISABLED))
+        root.after(0, lambda: lbl_status.config(text="SYS: ONLINE", fg="#00FF00"))
+        root.after(0, lambda: btn_start.config(state=tk.DISABLED, bg="#333333", fg="#555555"))
         
         while is_running:
             try:
@@ -59,11 +59,11 @@ def server_loop():
                 # Exception usually happens when socket is closed during accept()
                 break
     except Exception as e:
-        root.after(0, lambda: messagebox.showerror("Server Error", str(e)))
+        root.after(0, lambda: messagebox.showerror("CRITICAL ERROR", str(e)))
     finally:
         is_running = False
-        root.after(0, lambda: lbl_status.config(text="Status: Stopped", fg="red"))
-        root.after(0, lambda: btn_start.config(state=tk.NORMAL))
+        root.after(0, lambda: lbl_status.config(text="SYS: OFFLINE", fg="#FF0033"))
+        root.after(0, lambda: btn_start.config(state=tk.NORMAL, bg="#111111", fg="#00FFFF"))
 
 def start_server():
     if not is_running:
@@ -94,19 +94,39 @@ def close_app():
 
 # Set up the Tkinter GUI
 root = tk.Tk()
-root.title("Python Walkie-Talkie Server")
-root.geometry("300x150")
+root.title("NEXUS HUB // Python Relay Server")
+root.geometry("320x180")
 root.resizable(False, False)
+root.configure(bg="#050505")  # Deep black background
+
+# Styling configurations
+font_title = ("Courier New", 14, "bold")
+font_btn = ("Courier New", 10, "bold")
 
 # UI Elements
-lbl_status = tk.Label(root, text="Status: Stopped", fg="red", font=("Arial", 12, "bold"))
-lbl_status.pack(pady=15)
+# Outer frame for "holographic" border effect
+frame_main = tk.Frame(root, bg="#050505", highlightbackground="#00FFFF", highlightthickness=2)
+frame_main.pack(expand=True, fill=tk.BOTH, padx=10, pady=10)
 
-btn_start = tk.Button(root, text="Start Server", command=start_server, width=15, font=("Arial", 10))
-btn_start.pack(pady=5)
+lbl_title = tk.Label(frame_main, text="NEXUS RELAY SERVER", bg="#050505", fg="#00FFFF", font=font_title)
+lbl_title.pack(pady=(10, 0))
 
-btn_close = tk.Button(root, text="Close", command=close_app, width=15, font=("Arial", 10))
-btn_close.pack(pady=5)
+lbl_status = tk.Label(frame_main, text="SYS: OFFLINE", bg="#050505", fg="#FF0033", font=("Courier New", 12, "bold"))
+lbl_status.pack(pady=(5, 15))
+
+# Button container for horizontal layout
+frame_btns = tk.Frame(frame_main, bg="#050505")
+frame_btns.pack()
+
+btn_start = tk.Button(frame_btns, text="INITIATE", command=start_server, width=10, 
+                      bg="#111111", fg="#00FFFF", font=font_btn, 
+                      activebackground="#00FFFF", activeforeground="#000000", relief=tk.FLAT)
+btn_start.grid(row=0, column=0, padx=5)
+
+btn_close = tk.Button(frame_btns, text="TERMINATE", command=close_app, width=10, 
+                      bg="#111111", fg="#FF0033", font=font_btn, 
+                      activebackground="#FF0033", activeforeground="#000000", relief=tk.FLAT)
+btn_close.grid(row=0, column=1, padx=5)
 
 # Handle window close (X button)
 root.protocol("WM_DELETE_WINDOW", close_app)
