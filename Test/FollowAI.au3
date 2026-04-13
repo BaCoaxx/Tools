@@ -28,6 +28,11 @@ Global $Bot_Core_Initialized = False
 Global Const $BotTitle = ""
 Global $Action = ""
 
+; TCP Server connection for walkie-talkie
+Global $sIPAddress = "127.0.0.1"
+Global $iPort = 65432
+Global $iSocket = -1
+
 ;~ Follower bot variables
 Global $p1x, $p1y, $p2x, $p2y, $rotation
 
@@ -63,6 +68,16 @@ While 1
         ContinueLoop
     Else
         CallBack_SetEvent("OnChatMessage")
+        
+        ; Initialize TCP and connect to python walkie talkie server
+        TCPStartup()
+        $iSocket = TCPConnect($sIPAddress, $iPort)
+        If @error Then
+            LogInfo("Warning: Could not connect to Python Walkie-Talkie Server. Follow commands via TCP disabled.")
+        Else
+            LogInfo("Successfully connected to Python Walkie-Talkie Server.")
+        EndIf
+        
         ExitLoop
     EndIf
     Sleep(100)
@@ -73,11 +88,31 @@ While Not $BotRunning
 WEnd
 
 While $BotRunning
+    ; Check for incoming TCP data
+    If $iSocket <> -1 Then
+        Local $sRecvData = TCPRecv($iSocket, 2048)
+        If @error Then
+            TCPCloseSocket($iSocket)
+            $iSocket = -1
+            LogInfo("Disconnected from Walkie-Talkie Server.")
+        ElseIf $sRecvData <> "" Then
+            ; Check the message for commands
+            If StringInStr($sRecvData, "Follow") Then
+                $Action = 1
+                LogInfo("Received TCP command: Follow")
+            EndIf
+            If StringInStr($sRecvData, "Wait") Then
+                $Action = 2
+                LogInfo("Received TCP command: Wait")
+            EndIf
+        EndIf
+    EndIf
+
     Select
         Case $Action = 1 ; Follow command
-            GetPartyLeaderAndFollowerData()
+            Local $fDist = GetPartyLeaderAndFollowerData()
             Cache_SkillBar()
-            FollowLeaderSmoothPredict($p1x, $p1y, $rotation, $p2x, $p2y, 80)
+            FollowLeaderSmoothPredict($p1x, $p1y, $rotation, $p2x, $p2y, $fDist)
         Case $Action = 2 ; Wait command
             If $g_Init = True Then $g_Init = False
             Sleep(100)
@@ -118,6 +153,20 @@ Func GetPartyLeaderAndFollowerData()
     Local $leader = GetMemberAgentID(1)
     If $leader = 0 Then Return
 
+    ; Find our own party index to adjust offset
+    Local $myIndex = 1
+    Local $myAgentID = Agent_GetMyID()
+    Local $partySize = Party_GetMyPartyInfo("ArrayPlayerPartyMemberSize")
+    For $i = 1 To $partySize
+        If GetMemberAgentID($i) = $myAgentID Then
+            $myIndex = $i
+            ExitLoop
+        EndIf
+    Next
+
+    ; Base offset distance + an additional offset depending on party slot
+    Local $followDistance = 80 + ($myIndex * 40)
+
     ; Leader
     $p1x = Agent_GetAgentInfo($leader, "X")
     $p1y = Agent_GetAgentInfo($leader, "Y")
@@ -126,4 +175,6 @@ Func GetPartyLeaderAndFollowerData()
     ; Follower
     $p2x = Agent_GetAgentInfo(-2, "X")
     $p2y = Agent_GetAgentInfo(-2, "Y")
+    
+    Return $followDistance
 EndFunc
