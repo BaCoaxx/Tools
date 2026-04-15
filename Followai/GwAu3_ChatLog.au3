@@ -1,7 +1,6 @@
 #include-once
 
-; Global storage for all active detours
-Global $g_sd_Detours = ObjCreate("Scripting.Dictionary")
+Global $g_sd_Detours = ObjCreate('Scripting.Dictionary')
 Global $g_p_PostMessageA
 
 Global $g_b_AddPattern
@@ -17,6 +16,11 @@ Global $g_i_ChatMessageChannel
 Global $g_d_ChatLogStruct = DllStructCreate("dword;wchar[256]")
 Global $g_p_ChatLogStruct = DllStructGetPtr($g_d_ChatLogStruct)
 
+Func Extend_AddPattern()
+	Scanner_AddPattern('PostMessage', '6AFF6A00680180', 0x19, 'Ptr')
+	Scanner_AddPattern('ChatLog', '8B4508837D0C07', -0x20, 'Hook')
+EndFunc
+
 Func Extend_Scanner()
 	$g_p_PostMessageA = Scanner_GetScanResult('PostMessage', $g_ap_ScanResults, 'Ptr')
 	Memory_SetValue('PostMessage', Ptr(Memory_Read($g_p_PostMessageA, 'dword')))
@@ -25,22 +29,19 @@ Func Extend_Scanner()
 	Memory_SetValue('ChatLogStart', Ptr($l_p_Temp))
 	Memory_SetValue('ChatLogReturn', Ptr($l_p_Temp + 0x5))
 
-	;Hook log
-	Log_Debug("PostMessage: " & Memory_GetValue('PostMessage'), "Initialize", $g_h_EditText)
+	Log_Debug('PostMessage: ' & Memory_GetValue('PostMessage'), 'Initialize', $g_h_EditText)
+	Log_Debug('ChatLogStart: ' & Memory_GetValue('ChatLogStart'), 'Initialize', $g_h_EditText)
+	Log_Debug('ChatLogReturn: ' & Memory_GetValue('ChatLogReturn'), 'Initialize', $g_h_EditText)
 
-	Log_Debug("ChatLog: " & Memory_GetValue('ChatLog'), "Initialize", $g_h_EditText)
-	Log_Debug("ChatLogStart: " & Memory_GetValue('ChatLogStart'), "Initialize", $g_h_EditText)
-	Log_Debug("ChatLogReturn: " & Memory_GetValue('ChatLogReturn'), "Initialize", $g_h_EditText)
-
-    Memory_SetValue('CallbackEvent', '0x00000501')
-	Memory_SetValue("ChatLogSize", "0x00000010")
+	Memory_SetValue('ChatLogCallbackEvent', '0x00000501')
+	Memory_SetValue('ChatLogSize', '0x00000010')
 EndFunc
 
 Func Extend_InitializeResult()
-	$mGUI = GUICreate('GwAu3')
-	GUIRegisterMsg(0x00000501, 'CallBack_Event')
-	Memory_Write(Memory_GetValue('CallbackHandle'), $mGUI)
-	Log_Debug("CallbackHandle at: " & Memory_GetValue('CallbackHandle'), "Initialize", $g_h_EditText)
+	Local $l_h_GUI = GUICreate('GwAu3')
+	GUIRegisterMsg(0x00000501, 'ChatLog_EventCallback')
+	Memory_Write(Memory_GetValue('ChatLogCallbackHandle'), $l_h_GUI)
+	Log_Debug('ChatLogCallbackHandle: ' & Memory_GetValue('ChatLogCallbackHandle'), 'Initialize', $g_h_EditText)
 
 	$g_s_ChatLogBase = Memory_GetValue("ChatLogBase")
 	$g_i_ChatLogCounter = Memory_GetValue("ChatMessageCounter")
@@ -51,20 +52,20 @@ Func Extend_Assembler()
 	Assembler_CreateChatLog()
 EndFunc
 
-Func Assembler_CreateEventData()
-    _('CallbackHandle/4')
-	_('CallbackEvent/4')
-
-	_("ChatLogLastMsg/4")
-	_("ChatLogCounter/4")
-	_("ChatMessageCounter/4")
-	_("ChatMessageChannel/4")
-
-	_("ChatLogBase/" & 512)
-EndFunc
-
 Func Extend_AssemblerData()
 	Assembler_CreateEventData()
+EndFunc
+
+Func Assembler_CreateEventData()
+	_('ChatLogCallbackHandle/4')
+	_('ChatLogCallbackEvent/4')
+
+	_('ChatLogLastMsg/4')
+	_('ChatLogCounter/4')
+	_('ChatMessageCounter/4')
+	_('ChatMessageChannel/4')
+
+	_('ChatLogBase/' & 512)
 EndFunc
 
 Func Memory_WriteDetourEx($a_s_FromLabel, $a_s_ToLabel)
@@ -81,12 +82,12 @@ Func Memory_WriteDetourEx($a_s_FromLabel, $a_s_ToLabel)
     For $i = 1 To 5
         $l_s_OriginalOpcode &= Hex( DllStructGetData($l_s_Buffer, 1, $i), 2 )
     Next
-    $g_sd_Detours.Add($a_s_FromLabel, $l_s_OriginalOpcode)
-    Memory_WriteBinary('E9' & Utils_SwapEndian(Hex(Memory_GetValue($a_s_ToLabel) - Memory_GetValue($a_s_FromLabel) - 5)), Memory_GetValue($a_s_FromLabel))
+	$g_sd_Detours.Add($a_s_FromLabel, $l_s_OriginalOpcode)
+	Memory_WriteBinary('E9' & Utils_SwapEndian(Hex(Memory_GetValue($a_s_ToLabel) - Memory_GetValue($a_s_FromLabel) - 5)), Memory_GetValue($a_s_FromLabel))
 EndFunc
 
 Func Memory_RevertDetour($a_s_FromLabel)
-    If Not $g_sd_Detours.Exists($a_s_FromLabel) Then Return 0
+	If Not $g_sd_Detours.Exists($a_s_FromLabel) Then Return 0
 
     Local $l_s_OriginalOpcode = $g_sd_Detours.Item($a_s_FromLabel)
     Local $l_p_LabelPtr = Memory_GetValue($a_s_FromLabel)
@@ -97,104 +98,133 @@ Func Memory_RevertDetour($a_s_FromLabel)
     Return True
 EndFunc
 
-Func CallBack_SetEvent($a_s_ChatReceive = '')
-	If $a_s_ChatReceive <> "" Then
-		Memory_WriteDetourEx("ChatLogStart", "ChatLogProc")
+Func ChatLog_SetEventCallback($a_s_ChatReceive = '')
+	If $a_s_ChatReceive <> '' Then
+		Memory_WriteDetourEx('ChatLogStart', 'ChatLogProc')
 	Else
-		Memory_RevertDetour("ChatLogStart")
+		Memory_RevertDetour('ChatLogStart')
 	EndIf
 
 	$g_s_ChatReceive = $a_s_ChatReceive
 
-    Log_Info("Event callbacks configured", "CallBack_SetEvent", $g_h_EditText)
+	Log_Info('ChatLog event callbacks configured', 'ChatLog_SetEventCallback', $g_h_EditText)
 EndFunc
 
-Func CallBack_Event($hWnd, $msg, $wparam, $lparam)
-    Switch $lparam
+Func CallBack_SetEvent($a_s_ChatReceive = '')
+	Return ChatLog_SetEventCallback($a_s_ChatReceive)
+EndFunc
+
+Func ChatLog_EventCallback($hWnd, $msg, $wparam, $lparam)
+	Switch $lparam
 		Case 0x1
-			DllCall($g_h_Kernel32, "int", "ReadProcessMemory", "int", $g_h_GWProcess, "int", $wparam, "ptr", $g_p_ChatLogStruct, "int", 512, "int", "")
-			Local $l_s_Message = DllStructGetData($g_d_ChatLogStruct, 2)
-			Local $l_s_Channel = ""
-			Local $l_s_Sender = ""
-			Local $l_s_GuildTag = "No"
+			DllCall($g_h_Kernel32, 'bool', 'ReadProcessMemory', _
+				'handle', $g_h_GWProcess, _
+				'ptr', $wparam, _
+				'ptr', $g_p_ChatLogStruct, _
+				'ulong_ptr', DllStructGetSize($g_d_ChatLogStruct), _
+				'ulong_ptr*', 0 _
+			)
+
 			Local $i_ChannelType = DllStructGetData($g_d_ChatLogStruct, 1)
+			Local $l_s_Message = DllStructGetData($g_d_ChatLogStruct, 2)
+			Local $l_s_Channel = ''
+			Local $l_s_Sender = ''
+			Local $l_s_GuildTag = 'No'
 
 			Switch $i_ChannelType
 				Case 0
-					$l_s_Channel = "Alliance"
-					_ParseAlliance($l_s_Message, $l_s_Sender, $l_s_GuildTag, $l_s_Message)
+					$l_s_Channel = 'Alliance'
+					ChatLog_ParseAlliance($l_s_Message, $l_s_Sender, $l_s_GuildTag, $l_s_Message)
 				Case 3
-					$l_s_Channel = "All"
-					_ParseStandard($l_s_Message, $l_s_Sender, $l_s_Message)
+					$l_s_Channel = 'All'
+					ChatLog_ParseGeneral($l_s_Message, $l_s_Sender, $l_s_Message)
 				Case 9
-					$l_s_Channel = "Guild"
-					_ParseStandard($l_s_Message, $l_s_Sender, $l_s_Message, "ċĈć")
+					$l_s_Channel = 'Guild'
+					ChatLog_ParseGuild($l_s_Message, $l_s_Sender, $l_s_Message)
 				Case 11
-					$l_s_Channel = "Team"
-					_ParseStandard($l_s_Message, $l_s_Sender, $l_s_Message)
+					$l_s_Channel = 'Team'
+					ChatLog_ParseGeneral($l_s_Message, $l_s_Sender, $l_s_Message)
 				Case 12
-					$l_s_Channel = "Trade"
-					_ParseStandard($l_s_Message, $l_s_Sender, $l_s_Message)
+					$l_s_Channel = 'Trade'
+					ChatLog_ParseGeneral($l_s_Message, $l_s_Sender, $l_s_Message)
 				Case 10
-					$l_s_Channel = "Send Whisper"
-					_ParseWhisper($l_s_Message, $l_s_Sender, $l_s_Message)
+					$l_s_Channel = 'Send Whisper'
+					ChatLog_ParseWhisper($l_s_Message, $l_s_Sender, $l_s_Message)
 				Case 13
-					$l_s_Channel = "Advisory"
-					$l_s_Sender = "Guild Wars"
-					$l_s_Message = ""
+					$l_s_Channel = 'Advisory'
+					$l_s_Sender = 'Guild Wars'
+					$l_s_Message = ''
 				Case 14
-					$l_s_Channel = "Received Whisper"
-					_ParseWhisper($l_s_Message, $l_s_Sender, $l_s_Message)
+					$l_s_Channel = 'Received Whisper'
+					ChatLog_ParseWhisper($l_s_Message, $l_s_Sender, $l_s_Message, 1)
 				Case Else
-					$l_s_Channel = "Other"
-					$l_s_Sender = "Other"
+					$l_s_Channel = 'Other'
+					$l_s_Sender = 'Other'
 			EndSwitch
-			Call($g_s_ChatReceive, $l_s_Channel, $l_s_Sender, $l_s_Message, $l_s_GuildTag)
-			;Log_Debug("Channel: " & $l_s_Channel & " Sender: " & $l_s_Sender & " Alliance: " & $l_s_GuildTag & " Message: " & $l_s_Message, "ChatCallback", $g_h_EditText)
+
+			If $g_s_ChatReceive <> '' Then
+				Call($g_s_ChatReceive, $l_s_Channel, $l_s_Sender, $l_s_Message, $l_s_GuildTag)
+			EndIf
+
+			Log_Debug('Channel: ' & $l_s_Channel & ' Sender: ' & $l_s_Sender & ' Guild: ' & $l_s_GuildTag & ' Message: ' & $l_s_Message, 'ChatCallback', $g_h_EditText)
 	EndSwitch
 
-    Return 0
+	Return 0
 EndFunc
 
-Func Extend_CleanText($s_Text)
-    Return StringRegExpReplace($s_Text, "[^\x20-\x7E]", "")
+Func CallBack_Event($hWnd, $msg, $wparam, $lparam)
+	Return ChatLog_EventCallback($hWnd, $msg, $wparam, $lparam)
 EndFunc
 
-Func _ParseAlliance($msg, ByRef $sender, ByRef $tag, ByRef $text)
-    $sender = StringLeft($msg, StringInStr($msg, "Ĉ") - 1)
-    Local $start = StringInStr($msg, "Ĉ") + 2
-    Local $end = StringInStr($msg, "ċĈć")
-    $tag = StringMid($msg, $start, $end - $start)
-    $text = StringMid($msg, $end + 5, StringInStr($msg, "", 0, 1, $end + 5) - ($end + 5))
-    $sender = Extend_CleanText($sender)
-    $tag = Extend_CleanText($tag)
-    $text = Extend_CleanText($text)
+Func ChatLog_ParseAlliance($msg, ByRef $sender, ByRef $tag, ByRef $text)
+	Local $tagSep = "Ĉ", $textSep = "ċĈć"
+	Local $tagSepPos = StringInStr($msg, $tagSep), $textSepPos = StringInStr($msg, $textSep)
+	Local $tagStart = $tagSepPos + StringLen($tagSep), $textStart = $textSepPos + StringLen($textSep)
+
+	$sender = StringMid($msg, 3, $tagSepPos - 3)
+	$tag = StringMid($msg, $tagStart, $textSepPos - $tagStart)
+	$text = StringMid($msg, $textStart, StringInStr($msg, "", 0, 1, $textStart) - $textStart)
 EndFunc
 
-Func _ParseStandard($msg, ByRef $sender, ByRef $text, $sep = "ċĈć")
-    Local $sepPos = StringInStr($msg, $sep)
-    $sender = StringMid($msg, 1, $sepPos - 1)
-    $text = StringMid($msg, $sepPos + StringLen($sep), StringInStr($msg, "") - ($sepPos + StringLen($sep)))
-    $sender = Extend_CleanText($sender)
-    $text = Extend_CleanText($text)
+Func ChatLog_ParseGuild($msg, ByRef $sender, ByRef $text, $sep = "ċĈć")
+	Local $sepPos = StringInStr($msg, $sep)
+	Local $textStart = $sepPos + StringLen($sep)
+
+	$sender = StringLeft($msg, $sepPos - 1)
+	$text = StringMid($msg, $textStart, StringInStr($msg, "", 0, 1, $textStart) - $textStart)
 EndFunc
 
-Func _ParseWhisper($msg, ByRef $sender, ByRef $text)
-    Local $sepPos = StringInStr($msg, "Ĉ")
-    $sender = StringLeft($msg, $sepPos - 1)
-    $text = StringMid($msg, $sepPos + 2, StringInStr($msg, "") - ($sepPos + 2))
-    $sender = Extend_CleanText($sender)
-    $text = Extend_CleanText($text)
+Func ChatLog_ParseGeneral($msg, ByRef $sender, ByRef $text, $sep = "ċĈć")
+	Local $sepPos = StringInStr($msg, $sep)
+	If $sepPos = 0 Then
+		$sep = "ċ脂໾ć"
+		$sepPos = StringInStr($msg, $sep)
+	EndIf
+	Local $textStart = $sepPos + StringLen($sep)
+
+	$sender = StringMid($msg, 3, $sepPos - 3)
+	$text = StringMid($msg, $textStart, StringInStr($msg, "", 0, 1, $textStart) - $textStart)
+EndFunc
+
+Func ChatLog_ParseWhisper($msg, ByRef $sender, ByRef $text, $sendrecv = 0)
+	Local $sepPos = StringInStr($msg, "Ĉ")
+	Local $textStart = $sepPos + 2
+
+	If $sendrecv = 0 Then
+		$sender = StringMid($msg, 3, $sepPos - 3)
+	Else
+		$sender = StringLeft($msg, $sepPos - 1)
+	EndIf
+	$text = StringMid($msg, $textStart, StringInStr($msg, "", 0, 1, $textStart) - $textStart)
 EndFunc
 
 Func Assembler_CreateChatLog()
 	_("ChatLogProc:")
-	_("mov ecx,esp")
-	_("add ecx,C")
-	_("mov ecx,dword[ecx]")
+	_("pushfd")
+	_("pushad")
+	_("mov ecx,dword[esp+30]")
 	_("add ecx,4")
-	_("push ebx")
-	_("mov ebx,0")
+	_("xor ebx,ebx")
 	_("mov eax,ChatLogBase")
 	_("ChatLogCopyLoop:")
 	_("mov dx,word[ecx]")
@@ -207,45 +237,54 @@ Func Assembler_CreateChatLog()
 	_("test dx,dx")
 	_("jnz ChatLogCopyLoop")
 	_("ChatLogCopyExit:")
-	_("pop ebx")
-	_("mov ecx,esp")
-	_("add ecx,10")
-	_("mov ecx,dword[ecx]")
-	_("mov dword[ChatMessageChannel],ecx")
+	_("mov edx,dword[esp+34]")
+	_("mov dword[ChatMessageChannel],edx")
 
 	_("push eax")
 	_("mov eax,ChatLogBase")
 	_("sub eax,4")
-	_("mov dword[eax],ecx")
+	_("mov dword[eax],edx")
 	_("pop eax")
 
-	_("mov ecx,dword[ChatMessageCounter]")
-	_("add ecx,1")
-	_("mov dword[ChatMessageCounter],ecx")
+	_("mov edx,dword[ChatMessageCounter]")
+	_("inc edx")
+	_("mov dword[ChatMessageCounter],edx")
 
-	_("pushad")
 	_("push 1")
-	_("mov eax,ChatLogBase")
-	_("sub eax,4")
-	_("push eax")
-	_("push CallbackEvent")
-	_("push dword[CallbackHandle]")
+	_("mov edx,ChatLogBase")
+	_("sub edx,4")
+	_("push edx")
+	_("push ChatLogCallbackEvent")
+	_("push dword[ChatLogCallbackHandle]")
 	_("call dword[PostMessage]")
 	_("popad")
+	_("popfd")
 
 	_("mov eax,dword[ebp+8]")
 	_("test eax,eax")
 	_("ljmp ChatLogReturn")
 EndFunc
 
+Func ChatLog_GetChatLogBase()
+	Return $g_s_ChatLogBase
+EndFunc
+
+Func ChatLog_GetChatMessageCounter()
+	Return Memory_Read($g_i_ChatLogCounter)
+EndFunc
+
+Func ChatLog_GetChatMessageChannel()
+	Return Memory_Read($g_i_ChatMessageChannel)
+EndFunc
+
 Func GetChatLogBase()
-    Return $g_s_ChatLogBase
+	Return ChatLog_GetChatLogBase()
 EndFunc
 
 Func GetChatMessageCounter()
-    Return Memory_Read($g_i_ChatLogCounter)
+	Return ChatLog_GetChatMessageCounter()
 EndFunc
 
 Func GetChatMessageChannel()
-    Return Memory_Read($g_i_ChatMessageChannel)
+	Return ChatLog_GetChatMessageChannel()
 EndFunc
