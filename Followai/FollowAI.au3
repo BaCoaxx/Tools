@@ -87,6 +87,10 @@ While $BotRunning
         Case $Action = 4 ; Dialog command
             Out("Running Dialog...")
             Out("--NOT IMPLEMENTED YET--")
+        Case $Action = 5 ; Resign command
+            Chat_SendChat("resign", "/")
+            $Action = 2
+            Out("Resigning...")
     EndSelect
     Sleep(500)
 WEnd
@@ -104,10 +108,9 @@ Func OnChatMessage($channel, $sender, $message, $guildtag)
             Out("Stopping movement...waiting for further instructions.")
         EndIf
         If StringInStr($message, "Resign") Then
-            Chat_SendChat("resign", "/")
-            $Action = 2
             Out("Executing command from " & $sender)
             Out("Resigning...")
+            $Action = 5
         EndIf
         If StringInStr($message, "Bless") Then
             $Action = 3
