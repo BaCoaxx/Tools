@@ -9,7 +9,7 @@
 | Module: Follower Bot - Coaxx                                  |
 | Description: Follows and accepts commands from the party      |
 |              leader via the 'Team' channel (ChatLog module).  |
-| Commands: Follow | Wait | Blessing (WIP) | Dialog (WIP)       |
+| Commands: Follow | Wait | Resign                              |
 | Notes: Multiple instances supported; addable custom commands  |
 +---------------------------------------------------------------+
 #ce
@@ -81,13 +81,7 @@ While $BotRunning
         Case $Action = 2 ; Wait command
             If $g_Init = True Then $g_Init = False
             Sleep(100)
-        Case $Action = 3 ; Get Blessing command
-            Out("Taking the blessing...")
-            Out("--NOT IMPLEMENTED YET--")
-        Case $Action = 4 ; Dialog command
-            Out("Running Dialog...")
-            Out("--NOT IMPLEMENTED YET--")
-        Case $Action = 5 ; Resign command
+        Case $Action = 3 ; Resign command
             Chat_SendChat("resign", "/")
             $Action = 2
             Out("Resigning...")
@@ -110,15 +104,7 @@ Func OnChatMessage($channel, $sender, $message, $guildtag)
         If StringInStr($message, "Resign") Then
             Out("Executing command from " & $sender)
             Out("Resigning...")
-            $Action = 5
-        EndIf
-        If StringInStr($message, "Bless") Then
             $Action = 3
-            Out("Executing command from " & $sender)
-        EndIf
-        If StringInStr($message, "Dialog") Then
-            $Action = 4
-            Out("Executing command from " & $sender)
         EndIf
     EndIf
 EndFunc
