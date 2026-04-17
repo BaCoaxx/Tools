@@ -103,6 +103,12 @@ Func OnChatMessage($channel, $sender, $message, $guildtag)
             Out("Executing command from " & $sender)
             Out("Stopping movement...waiting for further instructions.")
         EndIf
+        If StringInStr($message, "Resign") Then
+            Chat_SendChat("resign", "/")
+            $Action = 2
+            Out("Executing command from " & $sender)
+            Out("Resigning...")
+        EndIf
         If StringInStr($message, "Bless") Then
             $Action = 3
             Out("Executing command from " & $sender)
