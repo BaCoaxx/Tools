@@ -23,9 +23,10 @@ Opt("ExpandVarStrings", 1)
 Global $ProcessID = ""
 Global $timer = TimerInit()
 
+Global $g_b_DebugMode = False
 Global $BotRunning = False
 Global $Bot_Core_Initialized = False
-Global Const $BotTitle = ""
+Global Const $BotTitle = "Follow.AI"
 Global $Action = ""
 
 ;~ Follower bot variables
@@ -47,14 +48,7 @@ Next
 
 #include "GUI.au3"
 
-Out("Based on GWA2")
-Out("GWA2 - Created by: " & $GC_S_GWA2_CREATOR)
-Out("GWA2 - Build date: " & $GC_S_GWA2_BUILD_DATE & @CRLF)
-
-Out("GwAu3 - Created by: " & $GC_S_UPDATOR)
-Out("GwAu3 - Build date: " & $GC_S_BUILD_DATE)
-Out("GwAu3 - Version: " & $GC_S_VERSION)
-Out("GwAu3 - Last Update: " & $GC_S_LAST_UPDATE & @CRLF)
+LogInfo("Why have shared memory when we can just talk about it?")
 
 Core_AutoStart()
 
@@ -82,9 +76,14 @@ While $BotRunning
             If $g_Init = True Then $g_Init = False
             Sleep(100)
         Case $Action = 3 ; Resign command
-            Chat_SendChat("resign", "/")
+            If Map_GetInstanceInfo("Type") = $GC_I_MAP_TYPE_EXPLORABLE Then
+                Chat_SendChat("resign", "/")
+                LogInfo("Follower has resigned.")
+            Else
+                LogError("Cannot resign as not in explorable...")
+            EndIf
             $Action = 2
-            Out("Resigning...")
+            Sleep(250)
     EndSelect
     Sleep(500)
 WEnd
@@ -93,17 +92,17 @@ Func OnChatMessage($channel, $sender, $message, $guildtag)
     If $channel = "Team" Then
         If StringInStr($message, "Follow") Then
             $Action = 1
-            Out("Executing command from " & $sender)
-            Out("Following the party leader...")
+            LogInfo("Executing command from " & $sender)
+            LogInfo("Following the party leader...")
         EndIf
         If StringInStr($message, "Wait") Then
             $Action = 2
-            Out("Executing command from " & $sender)
-            Out("Stopping movement...waiting for further instructions.")
+            LogInfo("Executing command from " & $sender)
+            LogInfo("Stopping movement...waiting for further instructions.")
         EndIf
         If StringInStr($message, "Resign") Then
-            Out("Executing command from " & $sender)
-            Out("Resigning...")
+            LogInfo("Executing command from " & $sender)
+            LogInfo("Resigning...")
             $Action = 3
         EndIf
     EndIf

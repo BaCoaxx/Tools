@@ -1,63 +1,68 @@
+Global Const $GUI_COLOR_BG = 0x090B13
+Global Const $GUI_COLOR_PANEL = 0x111827
+Global Const $GUI_COLOR_EDGE = 0x24324A
+Global Const $GUI_COLOR_TEXT = 0xD4E7FF
+Global Const $GUI_COLOR_ACCENT = 0x00F0FF
+Global Const $GUI_COLOR_LOG = 0x59E6FF
+Global Const $GUI_COLOR_PINK = 0xFF4FD8
 
-Local Const $UI_BG = 0x0B0F1A
-Local Const $UI_PANEL = 0x121A2C
-Local Const $UI_NEON = 0x00F0FF
-Local Const $UI_TEXT = 0xE6F1FF
+$MainGui = GUICreate($BotTitle, 248, 228, 821, 240, -1, BitOR($WS_EX_TOPMOST, $WS_EX_WINDOWEDGE))
+GUISetBkColor($GUI_COLOR_BG, $MainGui)
 
-$MainGui = GUICreate($BotTitle, 260, 190, -1, -1, BitOR($WS_SYSMENU, $WS_MINIMIZEBOX), BitOR($WS_EX_TOPMOST, $WS_EX_WINDOWEDGE))
-GUISetBkColor($UI_BG, $MainGui)
+$GUIHeader = GUICtrlCreateLabel("FOLLOW//AI", 14, 10, 92, 18)
+GUICtrlSetColor($GUIHeader, $GUI_COLOR_ACCENT)
+GUICtrlSetFont($GUIHeader, 9, 800, 0, "Arial")
 
-Local $l_i_Title = GUICtrlCreateLabel('FOLLOW.AI', 12, 10, 120, 18)
-GUICtrlSetColor($l_i_Title, $UI_NEON)
-GUICtrlSetFont($l_i_Title, 11, 800, 0, 'Consolas')
+$GUIHeaderTag = GUICtrlCreateLabel("cheap neon ops", 136, 12, 92, 15)
+GUICtrlSetColor($GUIHeaderTag, $GUI_COLOR_PINK)
+GUICtrlSetFont($GUIHeaderTag, 7, 400, 0, "Arial")
 
-Local $l_i_Sub = GUICtrlCreateLabel('COMMAND: FOLLOW / WAIT / RESIGN', 12, 28, 236, 14)
-GUICtrlSetColor($l_i_Sub, $UI_TEXT)
-GUICtrlSetFont($l_i_Sub, 8, 400, 0, 'Consolas')
+$GUIAccent = GUICtrlCreateLabel("", 14, 31, 220, 2)
+GUICtrlSetBkColor($GUIAccent, $GUI_COLOR_PINK)
 
-Local $l_i_Panel = GUICtrlCreateLabel('', 10, 48, 240, 132)
-GUICtrlSetBkColor($l_i_Panel, $UI_PANEL)
+$Group1 = GUICtrlCreateGroup("", 10, 40, 228, 178)
+GUICtrlSetColor($Group1, $GUI_COLOR_EDGE)
 
-Local $l_i_CharLbl = GUICtrlCreateLabel('CHAR', 18, 56, 40, 14)
-GUICtrlSetColor($l_i_CharLbl, $UI_NEON)
-GUICtrlSetFont($l_i_CharLbl, 8, 700, 0, 'Consolas')
+$GUICharLabel = GUICtrlCreateLabel("char link", 18, 52, 64, 14)
+GUICtrlSetColor($GUICharLabel, $GUI_COLOR_ACCENT)
+GUICtrlSetFont($GUICharLabel, 7, 700, 0, "Arial")
 
 Global $GUINameCombo
 If $doLoadLoggedChars Then
-    $GUINameCombo = GUICtrlCreateCombo($g_s_MainCharName, 64, 52, 180, 25, BitOR($CBS_DROPDOWN, $CBS_AUTOHSCROLL))
+    $GUINameCombo = GUICtrlCreateCombo($g_s_MainCharName, 18, 70, 212, 24, BitOR($CBS_DROPDOWN, $CBS_AUTOHSCROLL))
     GUICtrlSetData(-1, Scanner_GetLoggedCharNames())
 Else
-    $GUINameCombo = GUICtrlCreateInput($g_s_MainCharName, 64, 52, 180, 25)
+    $GUINameCombo = GUICtrlCreateInput($g_s_MainCharName, 18, 70, 212, 24)
 EndIf
-GUICtrlSetColor($GUINameCombo, $UI_TEXT)
-GUICtrlSetFont($GUINameCombo, 9, 400, 0, 'Consolas')
+GUICtrlSetColor($GUINameCombo, $GUI_COLOR_TEXT)
+GUICtrlSetBkColor($GUINameCombo, $GUI_COLOR_PANEL)
+GUICtrlSetFont($GUINameCombo, 9, 400, 0, "Arial")
 
-Local $l_i_StartLbl = GUICtrlCreateLabel('RUN', 18, 84, 40, 14)
-GUICtrlSetColor($l_i_StartLbl, $UI_NEON)
-GUICtrlSetFont($l_i_StartLbl, 8, 700, 0, 'Consolas')
-
-$GUIStartButton = GUICtrlCreateButton('START', 64, 80, 86, 24)
+$GUIStartButton = GUICtrlCreateButton("JACK IN", 18, 102, 102, 28)
+GUICtrlSetColor($GUIStartButton, $GUI_COLOR_ACCENT)
+GUICtrlSetBkColor($GUIStartButton, $GUI_COLOR_PANEL)
+GUICtrlSetFont($GUIStartButton, 8, 700, 0, "Arial")
 GUICtrlSetOnEvent($GUIStartButton, "GuiButtonHandler")
-$GUIRefreshButton = GUICtrlCreateButton('SYNC', 158, 80, 86, 24)
+$GUIRefreshButton = GUICtrlCreateButton("PING", 128, 102, 102, 28)
+GUICtrlSetColor($GUIRefreshButton, $GUI_COLOR_PINK)
+GUICtrlSetBkColor($GUIRefreshButton, $GUI_COLOR_PANEL)
+GUICtrlSetFont($GUIRefreshButton, 8, 700, 0, "Arial")
 GUICtrlSetOnEvent($GUIRefreshButton, "GuiButtonHandler")
-GUICtrlSetColor($GUIStartButton, $UI_TEXT)
-GUICtrlSetColor($GUIRefreshButton, $UI_TEXT)
-GUICtrlSetFont($GUIStartButton, 9, 700, 0, 'Consolas')
-GUICtrlSetFont($GUIRefreshButton, 9, 700, 0, 'Consolas')
 
-Local $l_i_LogLbl = GUICtrlCreateLabel('LOG', 18, 114, 40, 14)
-GUICtrlSetColor($l_i_LogLbl, $UI_NEON)
-GUICtrlSetFont($l_i_LogLbl, 8, 700, 0, 'Consolas')
+$g_h_EditText = _GUICtrlRichEdit_Create($MainGui, "", 18, 138, 212, 66, BitOR($ES_AUTOVSCROLL, $ES_MULTILINE, $WS_VSCROLL, $ES_READONLY))
+_GUICtrlRichEdit_SetBkColor($g_h_EditText, _GuiColorToColorRef($GUI_COLOR_PANEL))
+_GUICtrlRichEdit_SetCharColor($g_h_EditText, _GuiColorToColorRef($GUI_COLOR_LOG))
 
-$g_h_EditText = _GUICtrlRichEdit_Create($MainGui, "", 18, 130, 226, 44, BitOR($ES_AUTOVSCROLL, $ES_MULTILINE, $WS_VSCROLL, $ES_READONLY))
-_GUICtrlRichEdit_SetBkColor($g_h_EditText, $UI_BG)
-_GUICtrlRichEdit_SetTextColor($g_h_EditText, $UI_TEXT)
-
+GUICtrlCreateGroup("", -99, -99, 1, 1)
 GUISetOnEvent($GUI_EVENT_CLOSE, "_Exit")
 GUISetState(@SW_SHOW)
 
 Func _Exit()
     Exit
+EndFunc
+
+Func _GuiColorToColorRef($iColor)
+    Return BitOR(BitShift(BitAND($iColor, 0xFF0000), 16), BitAND($iColor, 0x00FF00), BitShift(BitAND($iColor, 0x0000FF), -16))
 EndFunc
 
 Func StartBot()

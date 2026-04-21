@@ -1,4 +1,15 @@
 #include-once
+Global $Survivor = False
+Global $_19Stop = False
+Global $spawn[2] = [0, 0]
+Global $hasBonus = False
+Global $CharrBossFarm = False
+Global $NickRun = False
+
+Global $timer = TimerInit()
+Global $enemyKillTime = 120000
+Global $TotalTime = 0
+Global $RunTime = 0
 
 #Region Calculations
 ;~ Description: Returns the distance between two coordinate pairs.
@@ -108,7 +119,7 @@ Func MoveTo($aX, $aY, $aRandom = 50, $aFightBack = False)
 	If SurvivorMode(40) Then Return
 
 	Map_Move($lDestX, $lDestY, 0)
-	
+
 	; Check for healing on route
 	If NeedHeal(95) Then UseHeal()
 
@@ -184,7 +195,7 @@ Local $lDestY = $aY + Random(-$aRandom, $aRandom)
 
                     If Not $hasEffect Or $timeRemaining <= $recastTime Then
                         UseSkillEx($aUpkeepSkills[$i], -2)
-                    EndIf            
+                    EndIf
                 Next
             EndIf
         EndIf
@@ -246,19 +257,19 @@ EndFunc
 Func UseHeal()
     Local $healSlot = GetHealOnBar()
     If $healSlot = 0 Then Return False
-    
+
     Local $skillID = Skill_GetSkillbarInfo($healSlot, "SkillID")
     Local $skillName = Skill_GetSkillInfo($skillID, "SkillName")
 	Local $energyCost = Skill_GetSkillInfo($skillID, "EnergyCost")
-    
+
     Do
         Sleep(250)
     Until GetEnergy(-2) >= $energyCost
 
     LogWarn("Using healing skill: " & $skillName)
-    
+
     UseSkillEx($healSlot, -2)
-    
+
     Return True
 EndFunc
 #EndRegion
@@ -276,12 +287,12 @@ Func AggroMoveSmartFilter($aX, $aY, $AggroRange = 1320, $maxdistance = 3500, $fi
     Map_Move($aX, $aY, $random)
     $coords[0] = Agent_GetAgentInfo(-2, 'X')
     $coords[1] = Agent_GetAgentInfo(-2, 'Y')
-    
+
     Do
         If GetPartyDead() Then ExitLoop
         Other_RndSleep(250)
         $oldCoords = $coords
-        
+
 		; Check for healing in case some grawl lobbed a brick
 		If NeedHeal(70) Then UseHeal()
 
@@ -290,7 +301,7 @@ Func AggroMoveSmartFilter($aX, $aY, $AggroRange = 1320, $maxdistance = 3500, $fi
 		_UAI_Fight($CurX, $CurY, $AggroRange, $maxdistance, $g_i_FinisherMode, 0, $filterArray, $KO)
 
 		If SurvivorMode() Then Return
-		
+
 		If CountSlots() <> 0 and GetPartyDead() = False Then
 			If TimerDiff($TimerToKill) > 180000 Then Return
 			If $LootRange <> 0 Then
@@ -301,7 +312,7 @@ Func AggroMoveSmartFilter($aX, $aY, $AggroRange = 1320, $maxdistance = 3500, $fi
 		EndIf
 
 		Other_RndSleep(250)
-		
+
 		; Check for healing after combat
 		If NeedHeal(50) Then UseHeal()
 
@@ -382,7 +393,7 @@ EndFunc   ;==>_UAI_Fight
 ;~ Func FightExFilter($AggroRange, $filterFunc = "EnemyFilter")
 ;~ 	If GetPartyDead() Then Return
 ;~ 	If SurvivorMode() Then Return
-	
+
 ;~ 	Local $target
 ;~ 	Local $distance
 ;~ 	Local $useSkill
@@ -402,19 +413,19 @@ EndFunc   ;==>_UAI_Fight
 ;~ 			If GetPartyDead() Then Exitloop
 ;~ 			If SurvivorMode() Then Return
 ;~ 			$distance = ComputeDistance(Agent_GetAgentInfo($target, 'X'), Agent_GetAgentInfo($target, 'Y'), Agent_GetAgentInfo(-2, 'X'), Agent_GetAgentInfo(-2, 'Y'))
-			
+
 ;~ 			If $target <> 0 AND $distance < $AggroRange And Not GetPartyDead() Then
 ;~ 				If TimerDiff($TimerToKill) > 180000 Then Exitloop
-				
+
 ;~ 				If Agent_GetAgentInfo($target, 'ID') <> $lastId Then
 ;~ 					If GetPartyDead() Then Exitloop
 ;~ 					If SurvivorMode() Then Return
-					
+
 ;~ 					Agent_ChangeTarget($target)
 ;~ 					Other_RndSleep(150)
 ;~ 					Agent_CallTarget($target)
 ;~ 					Other_RndSleep(150)
-					
+
 ;~ 					; Check for healing after we've called them stupid
 ;~ 					If NeedHeal(70) Then UseHeal()
 
@@ -435,17 +446,17 @@ EndFunc   ;==>_UAI_Fight
 ;~ 							If TimerDiff($TimerToKill) > 180000 Then Exitloop
 ;~ 							If GetPartyDead() Then Exitloop
 ;~ 							If SurvivorMode() Then Return
-							
+
 ;~ 							; I didn't mean it, I'm sorry..
 ;~ 							If NeedHeal(70) Then UseHeal()
-							
+
 ;~ 							Map_Move($coordinate[0], $coordinate[1])
 ;~ 							Other_RndSleep(50)
 ;~ 							If GetPartyDead() Then Exitloop
 ;~ 							If SurvivorMode() Then Return
 ;~ 							$distance = ComputeDistance($coordinate[0], $coordinate[1], Agent_GetAgentInfo(-2, 'X'), Agent_GetAgentInfo(-2, 'Y'))
 ;~ 						Until $distance < 1100 Or TimerDiff($timer) > 10000 Or GetPartyDead() Or TimerDiff($TimerToKill) > 180000
-					
+
 ;~ 					EndIf
 ;~ 				EndIf
 
@@ -454,13 +465,13 @@ EndFunc   ;==>_UAI_Fight
 ;~ 				$timer = TimerInit()
 ;~ 				If GetPartyDead() Then Exitloop
 ;~ 				If SurvivorMode() Then Return
-					
+
 ;~ 					Do
 ;~ 						If GetNumberOfFoesInRangeOfAgent(-2, 1700) = 0 Then Exitloop
 ;~ 						If TimerDiff($TimerToKill) > 180000 Then Exitloop
 ;~ 						If GetPartyDead() Then Exitloop
 ;~ 						If SurvivorMode() Then Return
-						
+
 ;~ 						; Check for healing before engaging
 ;~ 						If NeedHeal(70) Then UseHeal()
 
@@ -472,35 +483,35 @@ EndFunc   ;==>_UAI_Fight
 ;~ 						If $distance < 1250 And Not GetPartyDead() Then
 ;~ 							If GetNumberOfFoesInRangeOfAgent(-2, 1700) = 0 Then Exitloop
 ;~ 							If TimerDiff($TimerToKill) > 180000 Then Exitloop
-							
+
 ;~ 							For $i = 0 To 7
 ;~ 								If GetNumberOfFoesInRangeOfAgent(-2, 1700) = 0 Then Exitloop
 ;~ 								If TimerDiff($TimerToKill) > 180000 Then Exitloop
 ;~ 								If GetPartyDead() Then Exitloop
 ;~ 								If SurvivorMode() Then Return
 ;~ 								If Agent_GetAgentInfo($target, 'IsDead') Then ExitLoop
-								
+
 ;~ 								; Get skill ID for current slot
 ;~ 								Local $currentSkillID = Skill_GetSkillbarInfo($i+1, "SkillID")
 
 ;~ 								; Skip healing skills - they're handled separately
 ;~ 								If IsHealingSkill($currentSkillID) Then ContinueLoop
-																
+
 ;~ 								$distance = GetDistance($target, -2)
 ;~ 								If $distance > $AggroRange Then ExitLoop
 
 ;~ 								$energy = GetEnergy(-2)
-								
+
 ;~ 								; Deal with adrenaline skills
 ;~ 								If IsAdrenal($currentSkillID) Then
 ;~ 									If Skill_GetSkillbarInfo($i+1, "Adrenaline") < Skill_GetSkillInfo($currentSkillID, "Adrenaline") Then ContinueLoop
 ;~ 								EndIf
-								
+
 ;~ 								If IsRecharged($i+1) And $energy >= Skill_GetSkillInfo(Skill_GetSkillbarInfo($i+1, "SkillID"), "EnergyCost") And Not GetPartyDead() Then
 ;~ 									If GetNumberOfFoesInRangeOfAgent(-2, 1700) = 0 Then Exitloop
 ;~ 									If TimerDiff($TimerToKill) > 180000 Then Exitloop
 ;~ 									$useSkill = $i + 1
-									
+
 ;~ 									UseSkillEx($useSkill, $target)
 ;~ 									Other_RndSleep(150)
 ;~ 									If GetPartyDead() Then Exitloop
@@ -517,7 +528,7 @@ EndFunc   ;==>_UAI_Fight
 ;~ 								If SurvivorMode() Then Return
 ;~ 							Next
 ;~ 						EndIf
-						
+
 ;~ 						If TimerDiff($TimerToKill) > 180000 Then Exitloop
 ;~ 						If GetPartyDead() Then Exitloop
 ;~ 						If SurvivorMode() Then Return
@@ -590,7 +601,7 @@ Func GetPartySize()
     Local $aParty = Party_GetMyPartyInfo("ArrayPlayerPartyMemberSize")
     Local $aHero = Party_GetMyPartyInfo("ArrayHeroPartyMemberSize")
     Local $aHench = Party_GetMyPartyInfo("ArrayHenchmanPartyMemberSize")
-    
+
     Return $aParty + $aHero + $aHench
 EndFunc   ;==> GetPartySize
 
@@ -1061,13 +1072,13 @@ EndFunc   ;==>CheckArrayPscon
 Func InventoryPre()
     LogInfo("Travelling to Ascalon City (Pre-Searing)")
     RndTravel($GC_I_MAP_ID_ASCALON_CITY_OUTPOST)
-    
+
     Sleep(3000)
-    
+
     LogInfo("Moving to Merchant..")
     MerchantAscalonPre()
     Sleep(2000)
-    
+
     If GetGoldCharacter() < 100 Or CountSlots() < 1 Then
         LogWarn("Selling common items to get 100 gold minimum, and free inventory space.")
         For $i = 1 To 4
@@ -1075,13 +1086,13 @@ Func InventoryPre()
             If GetGoldCharacter() >= 100 And CountSlots() >= 1 Then ExitLoop
         Next
     EndIf
-    
+
     If GetGoldCharacter() >= 100 Then
         LogInfo("Identifying")
         For $i = 1 To 4
             Ident($i)
         Next
-        
+
         LogInfo("Selling")
         For $i = 1 To 4
             Sell($i)
@@ -1090,7 +1101,7 @@ Func InventoryPre()
         LogError("Not enough gold to buy ID kit, returning...")
         Return
     EndIf
-    
+
     LogWarn("Inventory management complete!")
 	Sleep(500)
 EndFunc ;==> InventoryPre
@@ -1215,9 +1226,9 @@ Func MerchantAscalonPre()
 	Local $sp1 = ComputeDistance(8436, 4819, $spX, $spY)
 
 	If $sp1 > 3000 Then MoveTo(8339.99, 6202.35)
-	
+
     MoveTo(8450.46, 4900.70)
-    
+
     LogInfo("Talking to Merchant..")
     Local $guy = GetNearestNPCToAgent(-2, 1320, $GC_I_AGENT_TYPE_LIVING, 1, "NPCFilter")
     MoveTo(Agent_GetAgentInfo($guy, "X") - 20, Agent_GetAgentInfo($guy, "Y") - 20)
@@ -1309,7 +1320,7 @@ Func RareMaterialTraderEotN()
 	MoveTo(Agent_GetAgentInfo($guy, "X")-20,Agent_GetAgentInfo($guy, "Y")-20)
     Agent_GoNPC($guy)
     Sleep(1000)
-	
+
 	;~This section does the buying
 	While GetGoldStorage() > 900*1000 Or GetGoldCharacter() > 10*1000
 		If GetGoldCharacter() > 10*1000 Then
@@ -1425,7 +1436,7 @@ EndFunc ;==>Salvage
 Func IsAlreadySalvaged($aItemPtr)
 	Local $modelID
 	If Not IsPtr($aItemPtr) Then $aItemPtr = Item_GetItemPtr($aItemPtr)
-	
+
 	$modelID = Item_GetItemInfoByPtr($aItemPtr, "ModelID")
 	Switch $modelID
 		Case 5551	;~ Sup Vigor
@@ -1726,7 +1737,7 @@ Func QuestActive($questID)
     If $hasquest Then
         LogInfo("Quest is in our quest log!")
         Ui_ActiveQuest($questID)
-    Else 
+    Else
         LogInfo("Quest is not in our quest log!")
     EndIf
     Sleep(250)
@@ -1768,7 +1779,7 @@ Func ScanDyes($dyeID)
 	Local $BagIndex
 	Local $BagPtr
 	Local $dyeNumber = 0
-	Local $ModelID 
+	Local $ModelID
 	Local $ExtraID
 
 	For $BagIndex = 1 To 4
@@ -1819,7 +1830,7 @@ EndFunc ;==> SellRunes
 Func CanPreSell($aItemPtr)
     Local $lRarity = Item_GetItemInfoByPtr($aItemPtr, "Rarity")
     Local $lIsIdentified = Item_GetItemInfoByPtr($aItemPtr, "IsIdentified")
-    
+
     ; Only sell white and blue items to get enough money or free slots
     If $lRarity <> $RARITY_White And $lRarity <> $RARITY_Blue Then Return False
 
@@ -1847,7 +1858,7 @@ Func CanSell($aItem)
 	Local $IsElonaAnniSkin = IsElonaAnniSkin($aItem)
 	Local $IsEotnAnniSkin = IsEotnAnniSkin($aItem)
 	Local $IsAnyCampAnniSkin = IsAnyCampAnniSkin($aItem)
-  
+
 	Switch $IsPurple
 	Case True
 	   Return Not $Purple ; Is purple
@@ -1862,32 +1873,32 @@ Func CanSell($aItem)
 	Case True
 	   Return False ; Is special item (Ecto, TOT, etc)
 	EndSwitch
- 
+
 	Switch $Pcon
 	Case True
 	   Return False ; Is a Pcon
 	EndSwitch
- 
+
 	Switch $Material
 	Case True
 	   Return False ; Is rare material
 	EndSwitch
- 
+
 	Switch $IsShield
 	Case True
 	   Return False ; Is perfect shield
 	EndSwitch
- 
+
 	Switch $IsReq8
 	Case True
 	   Return False ; Is req8 max
 	EndSwitch
- 
+
 	Switch $IsReq7
 	Case True
 	   Return False ; Is req7 max (15armor)
 	EndSwitch
- 
+
 	Switch $IsRune
 	Case True
 	   Return False
@@ -1902,12 +1913,12 @@ Func CanSell($aItem)
 	Case True
 	   Return False
 	EndSwitch
- 
+
 	Switch $IsEliteTome
 	Case True
 	   Return False
 	EndSwitch
- 
+
 	Switch $RareSkin
 	Case True
 	   Return True
@@ -1937,7 +1948,7 @@ Func CanSell($aItem)
 	Case True
 	   Return True
 	EndSwitch
- 
+
 	Return True
   EndFunc ;==> CanSell
 #EndRegion
@@ -1945,7 +1956,7 @@ Func CanSell($aItem)
 #Region Items
 Func IsPurple($aItem)
 	Local $lRarity = Item_GetItemInfoByPtr($aItem, "Rarity")
-	
+
 	If $lRarity = $RARITY_Purple Then
 		Return True
 	EndIf
@@ -2133,7 +2144,7 @@ Func IsRareSkin($aItem)
 		Return True ; Zodiac Sword
 	EndSwitch
 	Return False
-EndFunc ;==> IsRareSkin 
+EndFunc ;==> IsRareSkin
 
 Func IsTyriaAnniSkin($aItem)
 	Local $ModelID = Item_GetItemInfoByPtr($aItem, "ModelID")
@@ -2272,7 +2283,7 @@ EndFunc ;==> IsPcon
 Func IsRareMaterial($aItem)
 	Local $M = Item_GetItemInfoByPtr($aItem, "ModelID")
 	Local $Type = Item_GetItemInfoByPtr($aItem, "ItemType")
- 
+
 	If $Type <> 11 Then Return False	; Some items have the same model ID, so the type of rare mats is 11
 	Switch $M
 	Case 922, 923, 926, 927, 928, 930, 931, 932, 935, 936, 937, 938, 939, 941, 942, 943, 944, 945, 949, 950, 951, 952, 956, 6532, 6533
@@ -3002,7 +3013,7 @@ Func IsRareRune($aItem)
 	Local $supChannel = StringInStr($ModStruct, "0322E821", 0, 1) ; superior Channel
 	Local $supCommu = StringInStr($ModStruct, "0320E821", 0, 1) ; superior Commu
 
-	If $minorStrength > 0 Or $minorTactics > 0 Or $minorExpertise > 0 Or $minorMarksman > 0 Or $minorHealing > 0 Or $minorProt > 0 Or $minorDivine > 0 Then 
+	If $minorStrength > 0 Or $minorTactics > 0 Or $minorExpertise > 0 Or $minorMarksman > 0 Or $minorHealing > 0 Or $minorProt > 0 Or $minorDivine > 0 Then
 	   	Return True
 	ElseIf $minorSoul > 0 Or $minorFastcast > 0 Or $minorInsp > 0 Or $minorEnergy > 0 Or $minorSpawn > 0 Or $minorScythe > 0 Or $minorMystic > 0 Then
 		Return True
@@ -3045,7 +3056,7 @@ Func IsSellableRune($aItem)
 	Local $supChannel = StringInStr($ModStruct, "0322E821", 0, 1) ; superior Channel
 	Local $supCommu = StringInStr($ModStruct, "0320E821", 0, 1) ; superior Commu
 
-	If $minorStrength > 0 Or $minorTactics > 0 Or $minorExpertise > 0 Or $minorMarksman > 0 Or $minorHealing > 0 Or $minorProt > 0 Or $minorDivine > 0 Then 
+	If $minorStrength > 0 Or $minorTactics > 0 Or $minorExpertise > 0 Or $minorMarksman > 0 Or $minorHealing > 0 Or $minorProt > 0 Or $minorDivine > 0 Then
 		Return True
  	ElseIf $minorSoul > 0 Or $minorFastcast > 0 Or $minorInsp > 0 Or $minorEnergy > 0 Or $minorSpawn > 0 Or $minorScythe > 0 Or $minorMystic > 0 Then
 	 	Return True
@@ -3570,11 +3581,11 @@ Global $heroNumberWithRez[0]
 
 ;~ Summoning Stones
 Global $SummoningStone[20]
-$SummoningStone[0] = 37810	; Legionnaire 
+$SummoningStone[0] = 37810	; Legionnaire
 $SummoningStone[1] = 30209	; Tengu
 $SummoningStone[2] = 30210	; Imperial Guard
 $SummoningStone[3] = 35126	; Shining Blade
-$SummoningStone[4] = 31156	; Zaishen 
+$SummoningStone[4] = 31156	; Zaishen
 $SummoningStone[5] = 32557	; Ghastly
 $SummoningStone[6] = 31155	; Mysterious
 $SummoningStone[7] = 30960	; Mystical
@@ -3820,7 +3831,7 @@ Func _LogWrite($sLevel, $sText)
             Case "STATUS"
                 $l_x_Color = 0xC76D09 ; Blue
             Case "INFO"
-                $l_x_Color = 0x000000 ; Black
+                $l_x_Color = 0x59E6FF ; Cyan
         EndSwitch
 
         ; Append text with color
@@ -3828,13 +3839,6 @@ Func _LogWrite($sLevel, $sText)
         _GUICtrlRichEdit_SetCharColor($g_h_EditText, $l_x_Color)
         _GUICtrlRichEdit_AppendText($g_h_EditText, $sLine)
         _GUICtrlEdit_Scroll($g_h_EditText, 1)
-    EndIf
-
-    ; File log (crash safe)
-    Local $hFile = FileOpen($g_s_LogFile, $FO_APPEND)
-    If $hFile <> -1 Then
-        FileWrite($hFile, $sLine)
-        FileClose($hFile)
     EndIf
 EndFunc
 
