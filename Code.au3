@@ -2,18 +2,22 @@
               If Not $NickRun And Not $TwoFiddy
                 ResetStart()
               EndIf
+              Return
             EndIf
 
-            If $NickRun Then
+            If $NickRun Or $TwoFiddy Then
               Local $currentCount = GetItemCountByModelID($NickItem[0])
-              If $currentCount >= 25 Then
-                  LogInfo("Nicholas farm goal reached! Collected " & $currentCount & " " & $NickItem[1])
-                  Return
+              Local $targetCount, $msg
+
+              If $NickRun Then
+                $targetCount = 25
+                $msg = "Nicholas farm goal reached! "
+              ElseIf $TwoFiddy Then
+                $targetCount = 250
+                $msg = "You got that mad stack brother! "
               EndIf
-            ElseIf $TwoFiddy Then
-              Local $currentCount = GetItemCountByModelID($NickItem[0])
-              If $currentCount >= 250 Then
-                  LogInfo("You got that mad stack brother! Collected " & $currentCount & " " & $NickItem[1])
-                  Return
+
+              If $currentCount >= $targetCount Then
+                LogInfo($msg & "Collected " & $currentCount & " " & $NickItem[1])
+                Return
               EndIf
-            EndIf
