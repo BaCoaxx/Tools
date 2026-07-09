@@ -21,3 +21,4 @@
                 LogInfo($msg & "Collected " & $currentCount & " " & $NickItem[1])
                 Return
               EndIf
+            EndIf
