@@ -522,14 +522,14 @@ Follow consistent naming conventions throughout the project.
 Use descriptive names.
 
 Examples:
-
+```text
 components/
 ├── GuildCard.tsx
 ├── MemberCard.tsx
 ├── EventCard.tsx
 ├── HeroBanner.tsx
 ├── Navigation.tsx
-
+```
 Avoid:
 
 - component.tsx
