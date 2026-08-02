@@ -23,16 +23,82 @@ Global $oldAscalon[660][3] = [ _
     [7242,12801,""],[5822,13118,""],[4441,13607,""],[3936,13826,""],[2192,14790,""],[1611,14176,""],[991,13432,""],[462,12592,""],[-237,12026,""],[-1317,11429,""],[-1988,11441,""],[-2531,11528,""],[-2992,11711,""],[-3575,11996,""],[-3391,12758,""],[-3912,13766,""],[-4417,13821,""],[-5215,14840,""],[-5620,14316,""],[-6565,14888,""],[-7264,16220,""],[-9175,16208,""],[-10691,16929,""],[-11510,15970,""],[-12674,15473,""],[-13188,15385,""],[-14394,15548,""],[-15554,16362,""],[-16643,17192,""],[-18472,18573,""],[-19583,19133,""],[-18168,18517,""],[-18057,19104,""] _
 ]
 
-Func GoOut()
-  If Map_GetMapId() <> $oldAscalon[0][3] And Map_IsMapUnlocked($oldAscalon[0][3]) then
-    Map_RndTravel($oldAscalon[0][3])
+Func GoOut($from, $to) ; Can be reused elsewhere, this is for example, this wouldn't live here.
+  If Map_GetMapId() <> $from[0][3] And Map_IsMapUnlocked($from[0][3]) then
+    Map_RndTravel($from[0][3])
   EndIf
 
   Out("Let's find the way out!")
 
-  Local $ExitOutpost[0][2] = Map_GetExitPortalsCoords($oldAscalon[0][3], $GC_I_MAP_ID_OLD_ASCALON)
+  Local $ExitOutpost[0][2] = Map_GetExitPortalsCoords($from[0][3], $to)
   
   Map_InitMapIsLoaded()
   Pathfinder_MoveTo($ExitOutpost[1], $ExitOutpost[2])
   Map_WaitMapIsLoaded()
+EndFunc
+
+Func VQ_Area($path_to_run, $from, $to)
+  GoOut($from, $to)
+  
+  For $i = 0 To UBound($path_to_run) - 1
+    Pathfinder_MoveTo($path_to_run[$i][0], $path_to_run[$i][1])
+  
+    If GetAreaVanquished() Then
+      Out("Area vanquished successfully!")
+      Return True
+    EndIf
+  
+    If GetPartyDead() Then
+      Out("Party is dead, recovering...")
+      If Not RecoverToWaypoint($path_to_run, $i) Then
+        Out("Unable to vanquish map.")
+        Return False
+      EndIf
+    EndIf
+  Next
+  
+  Out("Unable to resolve vanquish status..")
+EndFunc
+
+Func RecoverToWaypoint($aWaypoints, $iDeathIndex) ; Can be reused elsewhere, this is for example, this wouldn't live here.
+  Do
+      Sleep(250)
+  Until Not GetIsDead()
+
+  Local $refResX = Agent_GetAgentInfo(-2, "X")
+  Local $refResY = Agent_GetAgentInfo(-2, "Y")
+  Local $iNearest = FindNearestWaypointIndex($aWaypoints, $refResX, $refResY)
+
+  Local $l_i_RawMorale = Party_GetMoraleInfo(-2, "RawMorale")
+  If IsNumber($l_i_RawMorale) And $l_i_RawMorale <= 40 Then Return False
+  If $iNearest = -1 Then Return False
+  If ComputeDistanceSquared($refResX, $refResY, $aWaypoints[$iNearest][0], $aWaypoints[$iNearest][1]) > 1500 ^ 2 Then Return False
+  If $iNearest > $iDeathIndex Then Return False
+
+  Local $n = $iNearest
+  While $n <= $iDeathIndex
+    Pathfinder_MoveTo($aWaypoints[$n][0], $aWaypoints[$n][1])
+  
+    If GetPartyDead() Then Return RecoverToWaypoint($aWaypoints, $n)
+  
+    $n += 1
+  WEnd
+
+  Return $iDeathIndex + 1
+EndFunc
+
+Func FindNearestWaypointIndex($aWaypoints, $fX, $fY) ; Can be reused elsewhere, this is for example, this wouldn't live here.
+  Local $iBest = -1
+  Local $fBestDist = 9.9e+20
+
+  For $i = 0 To UBound($aWaypoints) - 1
+    Local $d = ComputeDistanceSquared($fX, $fY, $aWaypoints[$i][0], $aWaypoints[$i][1])
+
+    If $d < $fBestDist Then
+      $fBestDist = $d
+      $iBest = $i
+    EndIf
+  Next
+
+  Return $iBest
 EndFunc
