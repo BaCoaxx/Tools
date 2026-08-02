@@ -29,4 +29,10 @@ Func GoOut()
   EndIf
 
   Out("Let's find the way out!")
+
+  Local $ExitOutpost[0][2] = Map_GetExitPortalsCoords($oldAscalon[0][3], $GC_I_MAP_ID_OLD_ASCALON)
+  
+  Map_InitMapIsLoaded()
+  Pathfinder_MoveTo($ExitOutpost[1], $ExitOutpost[2])
+  Map_WaitMapIsLoaded()
 EndFunc
