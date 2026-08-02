@@ -24,5 +24,9 @@ Global $oldAscalon[660][3] = [ _
 ]
 
 Func GoOut()
-    
+  If Map_GetMapId() <> $oldAscalon[0][3] And Map_IsMapUnlocked($oldAscalon[0][3]) then
+    Map_RndTravel($oldAscalon[0][3])
+  EndIf
+
+  Out("Let's find the way out!")
 EndFunc
