@@ -19,6 +19,13 @@ Global Const $BotTitle = "ToT Trader"
 Global $BotRunning = False
 Global $Bot_Core_Initialized = False
 
+; Items the bot can sell, shown in the GUI dropdown. Add one row per item:
+; [Dropdown name, Model ID, Name used in the trade advert]
+; Every item is traded in full stacks of 250.
+Global $g_av_TotItems[][3] = [ _
+    ["Trick or Treat Bag", 28434, "ToT Bags"] _
+]
+
 
 $g_bAutoStart = False  ; Flag for auto-start
 $g_s_MainCharName  = ""

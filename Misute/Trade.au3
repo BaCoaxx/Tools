@@ -1,7 +1,10 @@
 #include-once
 
 Global Const $TOT_MODEL_ECTO = 930
-Global Const $TOT_MODEL_BAG = 28434
+; The item being sold. Set from the GUI dropdown ($g_av_TotItems in Misute.au3) on Start.
+Global $g_s_TotItemName = $g_av_TotItems[0][0]
+Global $g_i_TotModel = $g_av_TotItems[0][1]
+Global $g_s_TotAdvertName = $g_av_TotItems[0][2]
 Global Const $TOT_STACK = 250
 Global Const $TOT_LOW_STACKS = 10
 Global Const $TOT_WAIT_MS = 60000
@@ -155,7 +158,7 @@ Func Tot_RunSession($a_i_PlayerNumber)
         Return
     EndIf
     If Tot_FullStacks() < $l_i_Stacks Then
-        LogWarn("Not enough Trick or Treat stacks for " & $l_i_Ectos & " ecto(s). Cancelling.")
+        LogWarn("Not enough " & $g_s_TotItemName & " stacks for " & $l_i_Ectos & " ecto(s). Cancelling.")
         Tot_Tell("Sorry, only " & Tot_FullStacks() & " stacks in stock right now. Try a smaller amount or check back soon.")
         $g_i_TotOutcome = 0
         Tot_EndSession()
@@ -215,7 +218,7 @@ Func Tot_RunSession($a_i_PlayerNumber)
         Return
     EndIf
     If Not Tot_OfferMatches($l_i_Price) Then
-        LogInfo("Ectos do not match the Trick or Treat stacks. Cancelling.")
+        LogInfo("Ectos do not match the " & $g_s_TotItemName & " stacks. Cancelling.")
         Tot_Tell("Your ecto changed after I offered. Please trade me again.")
         Tot_EndSession()
         Return
@@ -254,7 +257,7 @@ Func Tot_WaitActive()
 EndFunc
 
 Func Tot_OfferStacks($a_i_Stacks)
-    Local $l_ai_Stacks = Tot_ListItems($TOT_MODEL_BAG, $TOT_STACK)
+    Local $l_ai_Stacks = Tot_ListItems($g_i_TotModel, $TOT_STACK)
     If $l_ai_Stacks[0] < $a_i_Stacks Then Return 0
 
     Local $l_i_Offered = 0
@@ -332,7 +335,7 @@ Func Tot_OurBagStacks()
 
     Local $l_i_Bags = 0
     For $l_i_Slot = 0 To $l_i_Count - 1
-        If Trade_GetPlayerTradeItemsInfo($l_i_Slot, "ModelID") <> $TOT_MODEL_BAG Then Return -1
+        If Trade_GetPlayerTradeItemsInfo($l_i_Slot, "ModelID") <> $g_i_TotModel Then Return -1
         If Trade_GetPlayerTradeItemsInfo($l_i_Slot, "Quantity") <> $TOT_STACK Then Return -1
         $l_i_Bags += 1
     Next
@@ -391,7 +394,7 @@ Func Tot_Advert()
     Local $l_i_Stock = Tot_FullStacks()
     If $l_i_Stock < 1 Then Return ; try again once we have stock
     $g_i_TotAdvert = TimerInit()
-    Chat_SendChat("WTS ToT Bags - " & $g_i_EctoPerStack & "e/stk, " & $l_i_Stock & " stks in stock.", "$")
+    Chat_SendChat("WTS " & $g_s_TotAdvertName & " - " & $g_i_EctoPerStack & "e/stk, " & $l_i_Stock & " stks in stock.", "$")
 EndFunc
 
 Func Tot_SessionOpen()
@@ -405,7 +408,7 @@ Func Tot_EndSession()
 EndFunc
 
 Func Tot_FullStacks()
-    Local $l_ai_Stacks = Tot_ListItems($TOT_MODEL_BAG, $TOT_STACK)
+    Local $l_ai_Stacks = Tot_ListItems($g_i_TotModel, $TOT_STACK)
     Return $l_ai_Stacks[0]
 EndFunc
 
@@ -433,7 +436,7 @@ EndFunc
 
 Func Tot_DoRestock()
     $g_b_TotRestockCut = False
-    LogInfo("Fewer than " & $TOT_LOW_STACKS & " Trick or Treat stacks. Opening the Xunlai chest.")
+    LogInfo("Fewer than " & $TOT_LOW_STACKS & " " & $g_s_TotItemName & " stacks. Opening the Xunlai chest.")
     Ui_Xunlai()
 
     Local $l_i_Timer = TimerInit()
@@ -465,15 +468,15 @@ Func Tot_DoRestock()
     Local $l_ai_Fill = Tot_BagFill()
     If $l_ai_Fill[1] = 0 Or $l_ai_Fill[0] * 2 < $l_ai_Fill[1] Then
         If GUICtrlRead($g_hKeepRunning) = $GUI_CHECKED Then
-            LogWarn("Trick or Treat bags fill less than half the inventory. Keep running is on.")
+            LogWarn($g_s_TotItemName & " fills less than half the inventory. Keep running is on.")
         Else
-            LogWarn("Trick or Treat bags fill less than half the inventory. Pausing.")
+            LogWarn($g_s_TotItemName & " fills less than half the inventory. Pausing.")
             $BotRunning = False
             Return False
         EndIf
     EndIf
     If Not $BotRunning Then Return False
-    LogInfo("Trick or Treat stacks in inventory: " & Tot_FullStacks())
+    LogInfo($g_s_TotItemName & " stacks in inventory: " & Tot_FullStacks())
     Return True
 EndFunc
 
@@ -524,13 +527,13 @@ Func Tot_WithdrawBags()
     Local $l_av_Storage = Item_GetStorageArray()
     For $l_i_Idx = 0 To UBound($l_av_Storage) - 1
         If Not $BotRunning Or Tot_TradeWaiting() Then Return
-        If $l_av_Storage[$l_i_Idx][$GC_I_INVENTORY_MODELID] <> $TOT_MODEL_BAG Then ContinueLoop
+        If $l_av_Storage[$l_i_Idx][$GC_I_INVENTORY_MODELID] <> $g_i_TotModel Then ContinueLoop
         Local $l_ai_Empty = Tot_EmptySlot($g_ai_TotBags)
         If $l_ai_Empty[0] = 0 Then Return
         Item_MoveItem($l_av_Storage[$l_i_Idx][$GC_I_INVENTORY_ITEMID], $l_ai_Empty[0], $l_ai_Empty[1])
         Tot_Pause()
         If Item_GetItemBySlot($l_ai_Empty[0], $l_ai_Empty[1]) = 0 Then
-            LogWarn("Could not move Trick or Treat bags out of storage.")
+            LogWarn("Could not move " & $g_s_TotItemName & " out of storage.")
             Return
         EndIf
     Next
@@ -638,7 +641,7 @@ Func Tot_BagFill()
         For $l_i_Slot = 1 To $l_i_Slots
             Local $l_p_Item = Item_GetItemBySlot($g_ai_TotBags[$l_i_Idx], $l_i_Slot)
             If $l_p_Item = 0 Then ContinueLoop
-            If Item_GetItemInfoByPtr($l_p_Item, "ModelID") = $TOT_MODEL_BAG Then $l_i_Bags += 1
+            If Item_GetItemInfoByPtr($l_p_Item, "ModelID") = $g_i_TotModel Then $l_i_Bags += 1
         Next
     Next
     Local $l_ai_Fill[2] = [$l_i_Bags, $l_i_Total]

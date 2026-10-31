@@ -29,22 +29,26 @@ $GUIRefreshButton = GUICtrlCreateButton("Refresh", 256, 40, 56, 25)
 GUICtrlSetOnEvent($GUIRefreshButton, "GuiButtonHandler")
 GUICtrlCreateGroup("", -99, -99, 1, 1)
 
+Global $g_hItemLabel = GUICtrlCreateLabel("Item to sell", 16, 92, 108, 18)
+Global $g_hItemCombo = GUICtrlCreateCombo("", 124, 88, 194, 25, BitOR($CBS_DROPDOWNLIST, $WS_VSCROLL))
+Tot_FillItemCombo()
+
 Global $g_i_EctoPerStack = 1
-Global $g_hPriceLabel = GUICtrlCreateLabel("Ectos per stack", 16, 92, 108, 18)
-Global $g_hPriceSlider = GUICtrlCreateSlider(124, 88, 156, 22)
+Global $g_hPriceLabel = GUICtrlCreateLabel("Ectos per stack", 16, 120, 108, 18)
+Global $g_hPriceSlider = GUICtrlCreateSlider(124, 116, 156, 22)
 GUICtrlSetLimit($g_hPriceSlider, 10, 1)
 GUICtrlSetData($g_hPriceSlider, $g_i_EctoPerStack)
 GUICtrlSetOnEvent($g_hPriceSlider, "GuiButtonHandler")
-Global $g_hPriceValue = GUICtrlCreateLabel("1", 286, 88, 32, 22, $SS_CENTER)
+Global $g_hPriceValue = GUICtrlCreateLabel("1", 286, 116, 32, 22, $SS_CENTER)
 GUICtrlSetFont($g_hPriceValue, 12, $FW_BOLD)
 GUIRegisterMsg($WM_HSCROLL, "Tot_PriceScroll")
 
-Global $g_hKeepRunning = GUICtrlCreateCheckbox("Keep running if bags stay low", 16, 120, 196, 18)
-$GUIToggleRendering = GUICtrlCreateCheckbox("Rendering", 220, 120, 96, 18)
+Global $g_hKeepRunning = GUICtrlCreateCheckbox("Keep running if stock stays low", 16, 148, 196, 18)
+$GUIToggleRendering = GUICtrlCreateCheckbox("Rendering", 220, 148, 96, 18)
 GUICtrlSetOnEvent($GUIToggleRendering, "GuiButtonHandler")
 GUICtrlSetState($GUIToggleRendering, $GUI_DISABLE)
 
-$g_h_EditText = _GUICtrlRichEdit_Create($MainGui, "", 16, 148, 308, 108, BitOR($ES_AUTOVSCROLL, $ES_MULTILINE, $WS_VSCROLL, $ES_READONLY), $WS_EX_STATICEDGE)
+$g_h_EditText = _GUICtrlRichEdit_Create($MainGui, "", 16, 176, 308, 84, BitOR($ES_AUTOVSCROLL, $ES_MULTILINE, $WS_VSCROLL, $ES_READONLY), $WS_EX_STATICEDGE)
 _GUICtrlRichEdit_SetBkColor($g_h_EditText, $COLOR_WHITE)
 
 $Pic1 = GUICtrlCreatePic("Misute.jpg", 42, 268, 256, 71)
@@ -65,8 +69,10 @@ Func GuiButtonHandler()
                     $Bot_Core_Initialized = True
                 EndIf
 
+                Tot_SelectItem()
                 GUICtrlSetState($GUIToggleRendering, $GUI_ENABLE)
                 GUICtrlSetState($g_hPriceSlider, $GUI_DISABLE)
+                GUICtrlSetState($g_hItemCombo, $GUI_DISABLE)
                 GUICtrlSetState($GUIStartButton, $GUI_DISABLE)
 
                 GUICtrlSetData($GUIStartButton, "Stop")
@@ -94,6 +100,28 @@ Func GuiButtonHandler()
         Case $GUI_EVENT_CLOSE
             Exit
     EndSwitch
+EndFunc
+
+Func Tot_FillItemCombo()
+    Local $l_s_List = ""
+    For $l_i_Idx = 0 To UBound($g_av_TotItems) - 1
+        $l_s_List &= "|" & $g_av_TotItems[$l_i_Idx][0]
+    Next
+    GUICtrlSetData($g_hItemCombo, $l_s_List, $g_av_TotItems[0][0])
+EndFunc
+
+; Points the bot at the item picked in the dropdown.
+Func Tot_SelectItem()
+    Local $l_s_Pick = GUICtrlRead($g_hItemCombo)
+    For $l_i_Idx = 0 To UBound($g_av_TotItems) - 1
+        If $g_av_TotItems[$l_i_Idx][0] = $l_s_Pick Then
+            $g_s_TotItemName = $g_av_TotItems[$l_i_Idx][0]
+            $g_i_TotModel = $g_av_TotItems[$l_i_Idx][1]
+            $g_s_TotAdvertName = $g_av_TotItems[$l_i_Idx][2]
+            LogInfo("Selling: " & $g_s_TotItemName & " (model " & $g_i_TotModel & ").")
+            Return
+        EndIf
+    Next
 EndFunc
 
 Func Tot_PriceScroll($hWnd, $iMsg, $wParam, $lParam)
@@ -138,6 +166,7 @@ EndFunc
 
 Func ResetStart()
     GUICtrlSetState($g_hPriceSlider, $GUI_ENABLE)
+    GUICtrlSetState($g_hItemCombo, $GUI_ENABLE)
     GUICtrlSetState($GUIStartButton, $GUI_ENABLE)
     GUICtrlSetData($GUIStartButton, "Start")
     LogStatus("Bot paused.")
