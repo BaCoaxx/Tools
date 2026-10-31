@@ -5,6 +5,9 @@ Global Const $TOT_MODEL_BAG = 28434
 Global Const $TOT_STACK = 250
 Global Const $TOT_LOW_STACKS = 10
 Global Const $TOT_WAIT_MS = 60000
+Global Const $TOT_MAX_TRADE_STACKS = 7 ; trade window item slots
+Global Const $TOT_MAX_STRIKES = 3         ; failed trades in a row before a cooldown
+Global Const $TOT_COOLDOWN_MS = 300000    ; 5 minutes
 
 Global Const $g_ai_TotBags[4] = [$GC_I_INVENTORY_BACKPACK, $GC_I_INVENTORY_BELT_POUCH, $GC_I_INVENTORY_BAG1, $GC_I_INVENTORY_BAG2]
 Global Const $g_ai_TotStorage[14] = [ _
@@ -18,6 +21,15 @@ Global Const $g_ai_TotStorage[14] = [ _
 
 Global $g_i_TotRestockFloor = -1
 Global $g_i_TotAdvert = 0
+Global $g_b_TotRestockCut = False
+Global $g_b_TotRestocking = False
+Global $g_s_TotPartnerName = ""
+Global $g_i_TotOutcome = 0 ; 0 = no fault, 1 = sold, 2 = their trade fell through
+Global $g_i_TotSales = 0
+Global $g_i_TotEctosEarned = 0
+Global $g_o_TotStrikes = ObjCreate("Scripting.Dictionary")
+Global $g_o_TotBlocked = ObjCreate("Scripting.Dictionary")
+Global $g_s_TotLastIgnored = ""
 
 Func Tot_Run()
     If Not StoC_WatchTrade() Then
@@ -27,6 +39,8 @@ Func Tot_Run()
     EndIf
 
     Trade_InitTradePartner()
+    StoC_UpdateTrade()
+    _StoC_ResetTrade()
     $g_i_EctoPerStack = Number(GUICtrlRead($g_hPriceSlider))
     If $g_i_EctoPerStack < 1 Then $g_i_EctoPerStack = 1
     $g_i_TotAdvert = 0
@@ -40,8 +54,13 @@ Func Tot_Run()
             Local $l_i_Stacks = Tot_FullStacks()
             If $l_i_Stacks < $TOT_LOW_STACKS And $l_i_Stacks <> $g_i_TotRestockFloor Then
                 If Not Tot_Restock() Then ExitLoop
-                $g_i_TotRestockFloor = Tot_FullStacks()
-                If $g_i_TotRestockFloor >= $TOT_LOW_STACKS Then $g_i_TotRestockFloor = -1
+                If $g_b_TotRestockCut Then
+                    ; Restock was cut short for a trade. Retry it once the trade is done.
+                    $g_i_TotRestockFloor = -1
+                Else
+                    $g_i_TotRestockFloor = Tot_FullStacks()
+                    If $g_i_TotRestockFloor >= $TOT_LOW_STACKS Then $g_i_TotRestockFloor = -1
+                EndIf
             EndIf
         EndIf
         If Not $BotRunning Then ExitLoop
@@ -53,10 +72,15 @@ Func Tot_Run()
             ContinueLoop
         EndIf
 
-        LogInfo("Player " & $l_i_Partner & " requested a trade.")
+        If $g_s_TotLastIgnored = "" Then LogInfo("Player " & $l_i_Partner & " requested a trade.")
         Tot_RunSession($l_i_Partner)
+        Tot_RecordOutcome()
         Trade_InitTradePartner()
         If $BotRunning Then Tot_Pause()
+        ; Clear the finished trade here, not when the next one opens. A player can
+        ; offer and submit while we restock, and that submit must survive.
+        StoC_UpdateTrade()
+        _StoC_ResetTrade()
         $l_i_RestockCheck = 0
         If $BotRunning Then LogInfo("Waiting for a trade.")
     WEnd
@@ -66,19 +90,39 @@ Func Tot_Run()
 EndFunc
 
 Func Tot_RunSession($a_i_PlayerNumber)
+    ; Only reset if a stale result is left over (e.g. someone cancelled while we restocked).
+    ; Otherwise keep the state, so an offer they already submitted is not wiped.
     StoC_UpdateTrade()
-    _StoC_ResetTrade()
+    Local $l_i_Stale = StoC_GetTradeInfo("Result")
+    If $l_i_Stale = $GC_I_STOC_TRADE_ACK_CANCELLED Or $l_i_Stale = $GC_I_STOC_TRADE_ACK_EXECUTED Then
+        _StoC_ResetTrade()
+    ElseIf StoC_GetTradeInfo("PartnerSubmitted") Then
+        LogInfo("They already submitted before the window opened.")
+    EndIf
 
     Local $l_i_Price = Number(GUICtrlRead($g_hPriceSlider))
     If $l_i_Price < 1 Then $l_i_Price = 1
     If $l_i_Price > 10 Then $l_i_Price = 10
     $g_i_EctoPerStack = $l_i_Price
 
+    $g_i_TotOutcome = 0
+    $g_s_TotPartnerName = ""
     Local $l_i_Agent = Tot_PartnerAgent($a_i_PlayerNumber)
     If $l_i_Agent = 0 Then
         LogWarn("Could not find the player who requested the trade.")
         Return
     EndIf
+    $g_s_TotPartnerName = Agent_GetPlayerInfo($l_i_Agent, "Name")
+
+    If Tot_IsBlocked($g_s_TotPartnerName) Then
+        If $g_s_TotLastIgnored <> $g_s_TotPartnerName Then
+            LogInfo("Ignoring " & $g_s_TotPartnerName & " for a few minutes after repeated failed trades.")
+            $g_s_TotLastIgnored = $g_s_TotPartnerName
+        EndIf
+        Trade_CancelTrade()
+        Return
+    EndIf
+    $g_s_TotLastIgnored = ""
 
     LogInfo("Opening the trade at " & $l_i_Price & " ecto(s) per stack.")
     If Not Tot_Pause() Then Return
@@ -88,6 +132,7 @@ Func Tot_RunSession($a_i_PlayerNumber)
         Tot_EndSession()
         Return
     EndIf
+    $g_i_TotOutcome = 2 ; from here, anything short of a sale counts against them unless it is our fault
 
     LogInfo("Waiting for their ectos.")
     Local $l_i_Ectos = Tot_WaitForOffer()
@@ -99,11 +144,20 @@ Func Tot_RunSession($a_i_PlayerNumber)
     Local $l_i_Stacks = Tot_StacksForEctos($l_i_Ectos, $l_i_Price)
     If $l_i_Stacks < 1 Then
         LogInfo("Their ectos do not match " & $l_i_Price & " per stack. Cancelling.")
+        Tot_Tell("Price is " & $l_i_Price & " ecto per stack, so please offer a multiple of " & $l_i_Price & " ecto.")
+        Tot_EndSession()
+        Return
+    EndIf
+    If $l_i_Stacks > $TOT_MAX_TRADE_STACKS Then
+        LogInfo($l_i_Ectos & " ecto(s) is " & $l_i_Stacks & " stacks, over the " & $TOT_MAX_TRADE_STACKS & "-stack trade limit. Cancelling.")
+        Tot_Tell("Max " & $TOT_MAX_TRADE_STACKS & " stacks per trade (" & $TOT_MAX_TRADE_STACKS * $l_i_Price & " ecto). Trade me again for more.")
         Tot_EndSession()
         Return
     EndIf
     If Tot_FullStacks() < $l_i_Stacks Then
         LogWarn("Not enough Trick or Treat stacks for " & $l_i_Ectos & " ecto(s). Cancelling.")
+        Tot_Tell("Sorry, only " & Tot_FullStacks() & " stacks in stock right now. Try a smaller amount or check back soon.")
+        $g_i_TotOutcome = 0
         Tot_EndSession()
         Return
     EndIf
@@ -115,6 +169,7 @@ Func Tot_RunSession($a_i_PlayerNumber)
     Local $l_i_Offered = Tot_OfferStacks($l_i_Stacks)
     If $l_i_Offered <> $l_i_Stacks Then
         LogWarn("Could not place " & $l_i_Stacks & " stack(s). Cancelling.")
+        $g_i_TotOutcome = 0
         Tot_EndSession()
         Return
     EndIf
@@ -124,6 +179,7 @@ Func Tot_RunSession($a_i_PlayerNumber)
     EndIf
     If Not Trade_SubmitOffer(0) Or Not Tot_WaitOurSubmit() Then
         LogWarn("Could not submit the offer.")
+        $g_i_TotOutcome = 0
         Tot_EndSession()
         Return
     EndIf
@@ -160,17 +216,19 @@ Func Tot_RunSession($a_i_PlayerNumber)
     EndIf
     If Not Tot_OfferMatches($l_i_Price) Then
         LogInfo("Ectos do not match the Trick or Treat stacks. Cancelling.")
+        Tot_Tell("Your ecto changed after I offered. Please trade me again.")
         Tot_EndSession()
         Return
     EndIf
 
     If Not Trade_AcceptTrade() Then
         LogWarn("Could not accept the trade.")
+        $g_i_TotOutcome = 0
         Tot_EndSession()
         Return
     EndIf
     LogInfo("Accepted. Waiting for them to finish.")
-    Tot_WaitFinished()
+    Tot_WaitFinished($l_i_Offered, $l_i_Offered * $l_i_Price)
 EndFunc
 
 Func Tot_PartnerAgent($a_i_PlayerNumber)
@@ -238,6 +296,7 @@ Func Tot_WaitForOffer()
             Local $l_i_Ectos = Tot_ReadEctos()
             If $l_i_Ectos < 0 Then
                 LogInfo("Their offer is not ectos only.")
+                Tot_Tell("Ecto only please, " & $g_i_EctoPerStack & " per stack.")
                 Return -2
             EndIf
             LogInfo("They offered " & $l_i_Ectos & " ecto(s).")
@@ -247,6 +306,7 @@ Func Tot_WaitForOffer()
     WEnd
     If Not $BotRunning Then Return -1
     LogInfo("Timed out waiting for their offer.")
+    Tot_Tell("Timed out waiting for your offer. Trade me again when ready.")
     Return -2
 EndFunc
 
@@ -295,14 +355,14 @@ Func Tot_WaitOurSubmit()
     Return False
 EndFunc
 
-Func Tot_WaitFinished()
+Func Tot_WaitFinished($a_i_Stacks, $a_i_Ectos)
     Local $l_i_Timer = TimerInit()
     While $BotRunning And TimerDiff($l_i_Timer) < $TOT_WAIT_MS
         StoC_UpdateTrade()
         Tot_Advert()
         Local $l_i_Result = StoC_GetTradeInfo("Result")
         If $l_i_Result = $GC_I_STOC_TRADE_ACK_EXECUTED Then
-            LogInfo("Trade completed.")
+            Tot_RecordSale($a_i_Stacks, $a_i_Ectos)
             Return
         EndIf
         If $l_i_Result = $GC_I_STOC_TRADE_ACK_CANCELLED Or Not Tot_SessionOpen() Then
@@ -327,9 +387,11 @@ Func Tot_Pause()
 EndFunc
 
 Func Tot_Advert()
-    If Not $BotRunning Or TimerDiff($g_i_TotAdvert) < 120000 Then Return
+    If Not $BotRunning Or $g_b_TotRestocking Or TimerDiff($g_i_TotAdvert) < 120000 Then Return
+    Local $l_i_Stock = Tot_FullStacks()
+    If $l_i_Stock < 1 Then Return ; try again once we have stock
     $g_i_TotAdvert = TimerInit()
-    Chat_SendChat("WTS ToT Bags - " & $g_i_EctoPerStack & "e/stk.", "$")
+    Chat_SendChat("WTS ToT Bags - " & $g_i_EctoPerStack & "e/stk, " & $l_i_Stock & " stks in stock.", "$")
 EndFunc
 
 Func Tot_SessionOpen()
@@ -363,6 +425,14 @@ Func Tot_ListItems($a_i_Model, $a_i_MinQty)
 EndFunc
 
 Func Tot_Restock()
+    $g_b_TotRestocking = True
+    Local $l_b_Ok = Tot_DoRestock()
+    $g_b_TotRestocking = False
+    Return $l_b_Ok
+EndFunc
+
+Func Tot_DoRestock()
+    $g_b_TotRestockCut = False
     LogInfo("Fewer than " & $TOT_LOW_STACKS & " Trick or Treat stacks. Opening the Xunlai chest.")
     Ui_Xunlai()
 
@@ -383,7 +453,13 @@ Func Tot_Restock()
     Else
         Tot_Pause()
         Tot_StoreEctos()
-        If $BotRunning Then Tot_WithdrawBags()
+        If $BotRunning And Not Tot_TradeWaiting() Then Tot_WithdrawBags()
+    EndIf
+
+    If $BotRunning And Tot_TradeWaiting() Then
+        $g_b_TotRestockCut = True
+        LogInfo("Someone wants to trade. Pausing the restock to serve them first.")
+        Return True
     EndIf
 
     Local $l_ai_Fill = Tot_BagFill()
@@ -404,7 +480,7 @@ EndFunc
 Func Tot_StoreEctos()
     Local $l_ai_Ectos = Tot_ListItems($TOT_MODEL_ECTO, 1)
     For $l_i_Idx = 1 To $l_ai_Ectos[0]
-        If Not $BotRunning Then Return
+        If Not $BotRunning Or Tot_TradeWaiting() Then Return
         Local $l_i_Item = $l_ai_Ectos[$l_i_Idx]
         Local $l_i_Qty = Item_GetItemInfoByItemID($l_i_Item, "Quantity")
         Local $l_i_Tries = 0
@@ -447,7 +523,7 @@ EndFunc
 Func Tot_WithdrawBags()
     Local $l_av_Storage = Item_GetStorageArray()
     For $l_i_Idx = 0 To UBound($l_av_Storage) - 1
-        If Not $BotRunning Then Return
+        If Not $BotRunning Or Tot_TradeWaiting() Then Return
         If $l_av_Storage[$l_i_Idx][$GC_I_INVENTORY_MODELID] <> $TOT_MODEL_BAG Then ContinueLoop
         Local $l_ai_Empty = Tot_EmptySlot($g_ai_TotBags)
         If $l_ai_Empty[0] = 0 Then Return
@@ -458,6 +534,50 @@ Func Tot_WithdrawBags()
             Return
         EndIf
     Next
+EndFunc
+
+Func Tot_Tell($a_s_Message)
+    If Not IsString($g_s_TotPartnerName) Or $g_s_TotPartnerName = "" Then Return
+    Chat_SendWhisper($g_s_TotPartnerName, $a_s_Message)
+EndFunc
+
+Func Tot_RecordSale($a_i_Stacks, $a_i_Ectos)
+    $g_i_TotOutcome = 1
+    $g_i_TotSales += 1
+    $g_i_TotEctosEarned += $a_i_Ectos
+    LogInfo("Trade completed: " & $a_i_Stacks & " stack(s) for " & $a_i_Ectos & " ecto. Total: " & $g_i_TotSales & " trade(s), " & $g_i_TotEctosEarned & " ecto.")
+    WinSetTitle($MainGui, "", $BotTitle & " - " & player_GetCharname() & " - " & $g_i_TotSales & " trades, " & $g_i_TotEctosEarned & " ecto")
+EndFunc
+
+Func Tot_RecordOutcome()
+    Local $l_s_Name = $g_s_TotPartnerName
+    If Not $BotRunning Or Not IsString($l_s_Name) Or $l_s_Name = "" Or $g_s_TotLastIgnored <> "" Then Return
+    If $g_i_TotOutcome = 1 Then
+        If $g_o_TotStrikes.Exists($l_s_Name) Then $g_o_TotStrikes.Remove($l_s_Name)
+        Return
+    EndIf
+    If $g_i_TotOutcome <> 2 Then Return
+    Local $l_i_Strikes = 1
+    If $g_o_TotStrikes.Exists($l_s_Name) Then $l_i_Strikes = $g_o_TotStrikes.Item($l_s_Name) + 1
+    If $l_i_Strikes >= $TOT_MAX_STRIKES Then
+        If $g_o_TotStrikes.Exists($l_s_Name) Then $g_o_TotStrikes.Remove($l_s_Name)
+        $g_o_TotBlocked.Item($l_s_Name) = TimerInit()
+        LogInfo($l_s_Name & " had " & $TOT_MAX_STRIKES & " failed trades in a row. Ignoring them for " & Int($TOT_COOLDOWN_MS / 60000) & " minutes.")
+        Tot_Tell("Too many cancelled trades, please try again in " & Int($TOT_COOLDOWN_MS / 60000) & " minutes.")
+    Else
+        $g_o_TotStrikes.Item($l_s_Name) = $l_i_Strikes
+    EndIf
+EndFunc
+
+Func Tot_IsBlocked($a_s_Name)
+    If Not IsString($a_s_Name) Or $a_s_Name = "" Or Not $g_o_TotBlocked.Exists($a_s_Name) Then Return False
+    If TimerDiff($g_o_TotBlocked.Item($a_s_Name)) < $TOT_COOLDOWN_MS Then Return True
+    $g_o_TotBlocked.Remove($a_s_Name)
+    Return False
+EndFunc
+
+Func Tot_TradeWaiting()
+    Return Trade_GetTradePartner() <> 0
 EndFunc
 
 Func Tot_InInventory($a_i_Item)
