@@ -11,9 +11,9 @@
 #include <GuiTab.au3>
 
 ; Main Form
-$MainGui = GUICreate($BotTitle, 340, 368, 244, 170, -1, BitOR($WS_EX_TOPMOST, $WS_EX_WINDOWEDGE))
+$MainGui = GUICreate($BotTitle, 340, 396, 244, 170, -1, BitOR($WS_EX_TOPMOST, $WS_EX_WINDOWEDGE))
 
-$Group3 = GUICtrlCreateGroup(" ", 8, 8, 324, 352, -1, $WS_EX_TRANSPARENT)
+$Group3 = GUICtrlCreateGroup(" ", 8, 8, 324, 380, -1, $WS_EX_TRANSPARENT)
 $Group1 = GUICtrlCreateGroup("Character", 16, 20, 308, 56)
 
 Global $GUINameCombo
@@ -31,27 +31,37 @@ GUICtrlCreateGroup("", -99, -99, 1, 1)
 
 Global $g_hItemLabel = GUICtrlCreateLabel("Item to sell", 16, 92, 108, 18)
 Global $g_hItemCombo = GUICtrlCreateCombo("", 124, 88, 194, 25, BitOR($CBS_DROPDOWNLIST, $WS_VSCROLL))
-Tot_FillItemCombo()
+GUICtrlSetOnEvent($g_hItemCombo, "GuiButtonHandler")
+Tot_FillCombo($g_hItemCombo, $g_av_TotItems)
 
-Global $g_i_EctoPerStack = 1
-Global $g_hPriceLabel = GUICtrlCreateLabel("Ectos per stack", 16, 120, 108, 18)
-Global $g_hPriceSlider = GUICtrlCreateSlider(124, 116, 156, 22)
-GUICtrlSetLimit($g_hPriceSlider, 10, 1)
-GUICtrlSetData($g_hPriceSlider, $g_i_EctoPerStack)
-GUICtrlSetOnEvent($g_hPriceSlider, "GuiButtonHandler")
-Global $g_hPriceValue = GUICtrlCreateLabel("1", 286, 116, 32, 22, $SS_CENTER)
-GUICtrlSetFont($g_hPriceValue, 12, $FW_BOLD)
-GUIRegisterMsg($WM_HSCROLL, "Tot_PriceScroll")
+Global $g_hAmountLabel = GUICtrlCreateLabel("Amount per trade", 16, 120, 108, 18)
+Global $g_hAmountInput = GUICtrlCreateInput($g_av_TotItems[0][3], 124, 116, 80, 22, BitOR($ES_NUMBER, $ES_RIGHT))
+GUICtrlSetLimit($g_hAmountInput, 3)
+GUICtrlSetOnEvent($g_hAmountInput, "GuiButtonHandler")
+GUICtrlCreateLabel("(1 to 250)", 210, 120, 108, 18)
 
-Global $g_hKeepRunning = GUICtrlCreateCheckbox("Keep running if stock stays low", 16, 148, 196, 18)
-$GUIToggleRendering = GUICtrlCreateCheckbox("Rendering", 220, 148, 96, 18)
+Global Const $TOT_MAX_PRICE = 100000
+Global $g_i_TotPrice = 1
+Global $g_hPriceLabel = GUICtrlCreateLabel("Price per stack", 16, 148, 108, 18)
+Global $g_hPriceInput = GUICtrlCreateInput("1", 124, 144, 80, 22, BitOR($ES_NUMBER, $ES_RIGHT))
+GUICtrlSetLimit($g_hPriceInput, 6)
+GUICtrlSetOnEvent($g_hPriceInput, "GuiButtonHandler")
+Global $g_hCurrencyCombo = GUICtrlCreateCombo("", 210, 144, 108, 25, BitOR($CBS_DROPDOWNLIST, $WS_VSCROLL))
+GUICtrlSetOnEvent($g_hCurrencyCombo, "GuiButtonHandler")
+Tot_FillCombo($g_hCurrencyCombo, $g_av_TotCurrencies)
+
+Global $g_hSummary = GUICtrlCreateLabel("", 16, 200, 308, 18, $SS_CENTER)
+GUICtrlSetFont($g_hSummary, 9, $FW_BOLD)
+
+Global $g_hKeepRunning = GUICtrlCreateCheckbox("Keep running if stock stays low", 16, 176, 196, 18)
+$GUIToggleRendering = GUICtrlCreateCheckbox("Rendering", 220, 176, 96, 18)
 GUICtrlSetOnEvent($GUIToggleRendering, "GuiButtonHandler")
 GUICtrlSetState($GUIToggleRendering, $GUI_DISABLE)
 
-$g_h_EditText = _GUICtrlRichEdit_Create($MainGui, "", 16, 176, 308, 84, BitOR($ES_AUTOVSCROLL, $ES_MULTILINE, $WS_VSCROLL, $ES_READONLY), $WS_EX_STATICEDGE)
+$g_h_EditText = _GUICtrlRichEdit_Create($MainGui, "", 16, 224, 308, 64, BitOR($ES_AUTOVSCROLL, $ES_MULTILINE, $WS_VSCROLL, $ES_READONLY), $WS_EX_STATICEDGE)
 _GUICtrlRichEdit_SetBkColor($g_h_EditText, $COLOR_WHITE)
 
-$Pic1 = GUICtrlCreatePic("Misute.jpg", 42, 268, 256, 71)
+$Pic1 = GUICtrlCreatePic("Misute.jpg", 42, 296, 256, 71)
 GUICtrlCreateGroup("", -99, -99, 1, 1)
 
 GUISetOnEvent($GUI_EVENT_CLOSE, "GuiButtonHandler")
@@ -69,10 +79,9 @@ Func GuiButtonHandler()
                     $Bot_Core_Initialized = True
                 EndIf
 
-                Tot_SelectItem()
+                Tot_ApplyChoices(True)
                 GUICtrlSetState($GUIToggleRendering, $GUI_ENABLE)
-                GUICtrlSetState($g_hPriceSlider, $GUI_DISABLE)
-                GUICtrlSetState($g_hItemCombo, $GUI_DISABLE)
+                Tot_LockChoices($GUI_DISABLE)
                 GUICtrlSetState($GUIStartButton, $GUI_DISABLE)
 
                 GUICtrlSetData($GUIStartButton, "Stop")
@@ -94,46 +103,65 @@ Func GuiButtonHandler()
         Case $GUIToggleRendering
             Ui_ToggleRendering()
 
-        Case $g_hPriceSlider
-            Tot_ShowPrice()
+        Case $g_hItemCombo
+            ; A new item starts from its default amount in $g_av_TotItems.
+            GUICtrlSetData($g_hAmountInput, $g_av_TotItems[Tot_ComboIndex($g_hItemCombo, $g_av_TotItems)][3])
+            Tot_ApplyChoices(False)
+
+        Case $g_hAmountInput, $g_hCurrencyCombo, $g_hPriceInput
+            Tot_ApplyChoices(False)
 
         Case $GUI_EVENT_CLOSE
             Exit
     EndSwitch
 EndFunc
 
-Func Tot_FillItemCombo()
+Func Tot_FillCombo($a_h_Combo, ByRef $a_av_Rows)
     Local $l_s_List = ""
-    For $l_i_Idx = 0 To UBound($g_av_TotItems) - 1
-        $l_s_List &= "|" & $g_av_TotItems[$l_i_Idx][0]
+    For $l_i_Idx = 0 To UBound($a_av_Rows) - 1
+        $l_s_List &= "|" & $a_av_Rows[$l_i_Idx][0]
     Next
-    GUICtrlSetData($g_hItemCombo, $l_s_List, $g_av_TotItems[0][0])
+    GUICtrlSetData($a_h_Combo, $l_s_List, $a_av_Rows[0][0])
 EndFunc
 
-; Points the bot at the item picked in the dropdown.
-Func Tot_SelectItem()
-    Local $l_s_Pick = GUICtrlRead($g_hItemCombo)
-    For $l_i_Idx = 0 To UBound($g_av_TotItems) - 1
-        If $g_av_TotItems[$l_i_Idx][0] = $l_s_Pick Then
-            $g_s_TotItemName = $g_av_TotItems[$l_i_Idx][0]
-            $g_i_TotModel = $g_av_TotItems[$l_i_Idx][1]
-            $g_s_TotAdvertName = $g_av_TotItems[$l_i_Idx][2]
-            LogInfo("Selling: " & $g_s_TotItemName & " (model " & $g_i_TotModel & ").")
-            Return
-        EndIf
+Func Tot_ComboIndex($a_h_Combo, ByRef $a_av_Rows)
+    Local $l_s_Pick = GUICtrlRead($a_h_Combo)
+    For $l_i_Idx = 0 To UBound($a_av_Rows) - 1
+        If $a_av_Rows[$l_i_Idx][0] = $l_s_Pick Then Return $l_i_Idx
     Next
+    Return 0
 EndFunc
 
-Func Tot_PriceScroll($hWnd, $iMsg, $wParam, $lParam)
-    If $lParam = GUICtrlGetHandle($g_hPriceSlider) Then Tot_ShowPrice()
-    Return $GUI_RUNDEFMSG
+; Reads the item, price and currency from the GUI into the bot and refreshes the labels.
+Func Tot_ApplyChoices($a_b_Log = False)
+    Local $l_i_Item = Tot_ComboIndex($g_hItemCombo, $g_av_TotItems)
+    $g_s_TotItemName = $g_av_TotItems[$l_i_Item][0]
+    $g_i_TotModel = $g_av_TotItems[$l_i_Item][1]
+    $g_s_TotAdvertName = $g_av_TotItems[$l_i_Item][2]
+    $g_i_TotLotSize = Tot_ValidLotSize(GUICtrlRead($g_hAmountInput))
+    If String($g_i_TotLotSize) <> GUICtrlRead($g_hAmountInput) Then GUICtrlSetData($g_hAmountInput, $g_i_TotLotSize)
+
+    Local $l_i_Cur = Tot_ComboIndex($g_hCurrencyCombo, $g_av_TotCurrencies)
+    $g_s_TotCurName = $g_av_TotCurrencies[$l_i_Cur][0]
+    $g_i_TotCurModel = $g_av_TotCurrencies[$l_i_Cur][1]
+    $g_s_TotCurShort = $g_av_TotCurrencies[$l_i_Cur][2]
+
+    Local $l_i_Price = Int(Number(GUICtrlRead($g_hPriceInput)))
+    If $l_i_Price < 1 Then $l_i_Price = 1
+    If $l_i_Price > $TOT_MAX_PRICE Then $l_i_Price = $TOT_MAX_PRICE
+    If String($l_i_Price) <> GUICtrlRead($g_hPriceInput) Then GUICtrlSetData($g_hPriceInput, $l_i_Price)
+    $g_i_TotPrice = $l_i_Price
+
+    GUICtrlSetData($g_hPriceLabel, "Price " & Tot_PerLot())
+    GUICtrlSetData($g_hSummary, Tot_Summary())
+    If $a_b_Log Then LogInfo(Tot_Summary() & ".")
 EndFunc
 
-Func Tot_ShowPrice()
-    $g_i_EctoPerStack = Number(GUICtrlRead($g_hPriceSlider))
-    If $g_i_EctoPerStack < 1 Then $g_i_EctoPerStack = 1
-    If $g_i_EctoPerStack > 10 Then $g_i_EctoPerStack = 10
-    GUICtrlSetData($g_hPriceValue, $g_i_EctoPerStack)
+Func Tot_LockChoices($a_i_State)
+    GUICtrlSetState($g_hItemCombo, $a_i_State)
+    GUICtrlSetState($g_hAmountInput, $a_i_State)
+    GUICtrlSetState($g_hPriceInput, $a_i_State)
+    GUICtrlSetState($g_hCurrencyCombo, $a_i_State)
 EndFunc
 
 Func InitializeBot()
@@ -165,8 +193,7 @@ Func InitializeBot()
 EndFunc
 
 Func ResetStart()
-    GUICtrlSetState($g_hPriceSlider, $GUI_ENABLE)
-    GUICtrlSetState($g_hItemCombo, $GUI_ENABLE)
+    Tot_LockChoices($GUI_ENABLE)
     GUICtrlSetState($GUIStartButton, $GUI_ENABLE)
     GUICtrlSetData($GUIStartButton, "Start")
     LogStatus("Bot paused.")

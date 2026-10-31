@@ -1,10 +1,15 @@
 #include-once
 
-Global Const $TOT_MODEL_ECTO = 930
 ; The item being sold. Set from the GUI dropdown ($g_av_TotItems in Misute.au3) on Start.
 Global $g_s_TotItemName = $g_av_TotItems[0][0]
 Global $g_i_TotModel = $g_av_TotItems[0][1]
 Global $g_s_TotAdvertName = $g_av_TotItems[0][2]
+Global $g_i_TotLotSize = Tot_ValidLotSize($g_av_TotItems[0][3]) ; how many items the price buys
+; What the buyer pays with. Set from the GUI dropdown ($g_av_TotCurrencies in Misute.au3).
+Global $g_s_TotCurName = $g_av_TotCurrencies[0][0]
+Global $g_i_TotCurModel = $g_av_TotCurrencies[0][1] ; 0 = gold
+Global $g_s_TotCurShort = $g_av_TotCurrencies[0][2]
+Global Const $TOT_MAX_GOLD = 100000 ; most gold a character can hold or trade
 Global Const $TOT_STACK = 250
 Global Const $TOT_LOW_STACKS = 10
 Global Const $TOT_WAIT_MS = 60000
@@ -29,7 +34,8 @@ Global $g_b_TotRestocking = False
 Global $g_s_TotPartnerName = ""
 Global $g_i_TotOutcome = 0 ; 0 = no fault, 1 = sold, 2 = their trade fell through
 Global $g_i_TotSales = 0
-Global $g_i_TotEctosEarned = 0
+Global $g_o_TotEarned = ObjCreate("Scripting.Dictionary") ; currency name -> amount
+Tot_ApplyChoices() ; labels match the default picks
 Global $g_o_TotStrikes = ObjCreate("Scripting.Dictionary")
 Global $g_o_TotBlocked = ObjCreate("Scripting.Dictionary")
 Global $g_s_TotLastIgnored = ""
@@ -44,8 +50,6 @@ Func Tot_Run()
     Trade_InitTradePartner()
     StoC_UpdateTrade()
     _StoC_ResetTrade()
-    $g_i_EctoPerStack = Number(GUICtrlRead($g_hPriceSlider))
-    If $g_i_EctoPerStack < 1 Then $g_i_EctoPerStack = 1
     $g_i_TotAdvert = 0
     LogInfo("Waiting for a trade.")
     Local $l_i_RestockCheck = 0
@@ -103,10 +107,7 @@ Func Tot_RunSession($a_i_PlayerNumber)
         LogInfo("They already submitted before the window opened.")
     EndIf
 
-    Local $l_i_Price = Number(GUICtrlRead($g_hPriceSlider))
-    If $l_i_Price < 1 Then $l_i_Price = 1
-    If $l_i_Price > 10 Then $l_i_Price = 10
-    $g_i_EctoPerStack = $l_i_Price
+    Local $l_i_Price = $g_i_TotPrice
 
     $g_i_TotOutcome = 0
     $g_s_TotPartnerName = ""
@@ -127,7 +128,7 @@ Func Tot_RunSession($a_i_PlayerNumber)
     EndIf
     $g_s_TotLastIgnored = ""
 
-    LogInfo("Opening the trade at " & $l_i_Price & " ecto(s) per stack.")
+    LogInfo("Opening the trade at " & Tot_Amount($l_i_Price) & " " & Tot_PerLot() & ".")
     If Not Tot_Pause() Then Return
     Trade_InitiateTrade($l_i_Agent)
     If Not Tot_WaitActive() Then
@@ -137,7 +138,7 @@ Func Tot_RunSession($a_i_PlayerNumber)
     EndIf
     $g_i_TotOutcome = 2 ; from here, anything short of a sale counts against them unless it is our fault
 
-    LogInfo("Waiting for their ectos.")
+    LogInfo("Waiting for their " & $g_s_TotCurName & ".")
     Local $l_i_Ectos = Tot_WaitForOffer()
     If $l_i_Ectos < 0 Then
         Tot_EndSession()
@@ -146,20 +147,20 @@ Func Tot_RunSession($a_i_PlayerNumber)
 
     Local $l_i_Stacks = Tot_StacksForEctos($l_i_Ectos, $l_i_Price)
     If $l_i_Stacks < 1 Then
-        LogInfo("Their ectos do not match " & $l_i_Price & " per stack. Cancelling.")
-        Tot_Tell("Price is " & $l_i_Price & " ecto per stack, so please offer a multiple of " & $l_i_Price & " ecto.")
+        LogInfo("Their " & $g_s_TotCurName & " does not match " & Tot_Amount($l_i_Price) & " " & Tot_PerLot() & ". Cancelling.")
+        Tot_Tell("Price is " & Tot_Amount($l_i_Price) & " " & Tot_PerLot() & ", so please offer a multiple of " & Tot_Amount($l_i_Price) & ".")
         Tot_EndSession()
         Return
     EndIf
-    If $l_i_Stacks > $TOT_MAX_TRADE_STACKS Then
-        LogInfo($l_i_Ectos & " ecto(s) is " & $l_i_Stacks & " stacks, over the " & $TOT_MAX_TRADE_STACKS & "-stack trade limit. Cancelling.")
-        Tot_Tell("Max " & $TOT_MAX_TRADE_STACKS & " stacks per trade (" & $TOT_MAX_TRADE_STACKS * $l_i_Price & " ecto). Trade me again for more.")
+    If $l_i_Stacks > Tot_MaxLots() Then
+        LogInfo(Tot_Amount($l_i_Ectos) & " is " & $l_i_Stacks * $g_i_TotLotSize & " items, over the " & Tot_MaxLots() * $g_i_TotLotSize & "-item trade limit. Cancelling.")
+        Tot_Tell("Max " & Tot_MaxLots() * $g_i_TotLotSize & " per trade (" & Tot_Amount(Tot_MaxLots() * $l_i_Price) & "). Trade me again for more.")
         Tot_EndSession()
         Return
     EndIf
     If Tot_FullStacks() < $l_i_Stacks Then
-        LogWarn("Not enough " & $g_s_TotItemName & " stacks for " & $l_i_Ectos & " ecto(s). Cancelling.")
-        Tot_Tell("Sorry, only " & Tot_FullStacks() & " stacks in stock right now. Try a smaller amount or check back soon.")
+        LogWarn("Not enough " & $g_s_TotItemName & " for " & Tot_Amount($l_i_Ectos) & ". Cancelling.")
+        Tot_Tell("Sorry, only " & Tot_FullStacks() * $g_i_TotLotSize & " in stock right now. Try a smaller amount or check back soon.")
         $g_i_TotOutcome = 0
         Tot_EndSession()
         Return
@@ -171,7 +172,7 @@ Func Tot_RunSession($a_i_PlayerNumber)
     EndIf
     Local $l_i_Offered = Tot_OfferStacks($l_i_Stacks)
     If $l_i_Offered <> $l_i_Stacks Then
-        LogWarn("Could not place " & $l_i_Stacks & " stack(s). Cancelling.")
+        LogWarn("Could not place " & $l_i_Stacks * $g_i_TotLotSize & " " & $g_s_TotItemName & ". Cancelling.")
         $g_i_TotOutcome = 0
         Tot_EndSession()
         Return
@@ -186,7 +187,7 @@ Func Tot_RunSession($a_i_PlayerNumber)
         Tot_EndSession()
         Return
     EndIf
-    LogInfo("Offered " & $l_i_Offered & " stack(s).")
+    LogInfo("Offered " & $l_i_Offered * $g_i_TotLotSize & " " & $g_s_TotItemName & ".")
 
     StoC_UpdateTrade()
     If Not StoC_GetTradeInfo("PartnerSubmitted") Then
@@ -218,12 +219,19 @@ Func Tot_RunSession($a_i_PlayerNumber)
         Return
     EndIf
     If Not Tot_OfferMatches($l_i_Price) Then
-        LogInfo("Ectos do not match the " & $g_s_TotItemName & " stacks. Cancelling.")
-        Tot_Tell("Your ecto changed after I offered. Please trade me again.")
+        LogInfo("Their " & $g_s_TotCurName & " does not match the " & $g_s_TotItemName & " offered. Cancelling.")
+        Tot_Tell("Your " & $g_s_TotCurName & " changed after I offered. Please trade me again.")
         Tot_EndSession()
         Return
     EndIf
 
+    If $g_i_TotCurModel = 0 And Item_GetInventoryInfo("GoldCharacter") + Tot_ReadEctos() > $TOT_MAX_GOLD Then
+        LogWarn("Taking " & Tot_Amount(Tot_ReadEctos()) & " would put this character over " & Tot_Amount($TOT_MAX_GOLD) & ". Cancelling.")
+        Tot_Tell("Sorry, I can't carry that much gold right now. Try a smaller amount.")
+        $g_i_TotOutcome = 0
+        Tot_EndSession()
+        Return
+    EndIf
     If Not Trade_AcceptTrade() Then
         LogWarn("Could not accept the trade.")
         $g_i_TotOutcome = 0
@@ -256,17 +264,24 @@ Func Tot_WaitActive()
     Return False
 EndFunc
 
-Func Tot_OfferStacks($a_i_Stacks)
-    Local $l_ai_Stacks = Tot_ListItems($g_i_TotModel, $TOT_STACK)
-    If $l_ai_Stacks[0] < $a_i_Stacks Then Return 0
-
-    Local $l_i_Offered = 0
-    For $l_i_Idx = 1 To $a_i_Stacks
-        If $l_i_Offered > 0 And Not Tot_Pause() Then Return $l_i_Offered
-        If Not Trade_OfferItem($l_ai_Stacks[$l_i_Idx], $TOT_STACK) Then Return $l_i_Offered
-        $l_i_Offered += 1
+; Offers $a_i_Lots trade units, taking from as many inventory stacks as needed
+; (up to the trade window's slots). Returns how many whole units were offered.
+Func Tot_OfferStacks($a_i_Lots)
+    Local $l_i_Need = $a_i_Lots * $g_i_TotLotSize
+    Local $l_ai_Items = Tot_ListItems($g_i_TotModel, 1)
+    Local $l_i_Placed = 0
+    Local $l_i_Slots = 0
+    For $l_i_Idx = 1 To $l_ai_Items[0]
+        If $l_i_Placed >= $l_i_Need Or $l_i_Slots >= $TOT_MAX_TRADE_STACKS Then ExitLoop
+        Local $l_i_Qty = Item_GetItemInfoByItemID($l_ai_Items[$l_i_Idx], "Quantity")
+        If $l_i_Qty < 1 Then ContinueLoop
+        If $l_i_Qty > $l_i_Need - $l_i_Placed Then $l_i_Qty = $l_i_Need - $l_i_Placed
+        If $l_i_Slots > 0 And Not Tot_Pause() Then ExitLoop
+        If Not Trade_OfferItem($l_ai_Items[$l_i_Idx], $l_i_Qty) Then ExitLoop
+        $l_i_Placed += $l_i_Qty
+        $l_i_Slots += 1
     Next
-    Return $l_i_Offered
+    Return Int($l_i_Placed / $g_i_TotLotSize)
 EndFunc
 
 ; -1: session already ending. -2: caller should cancel.
@@ -298,11 +313,11 @@ Func Tot_WaitForOffer()
             EndIf
             Local $l_i_Ectos = Tot_ReadEctos()
             If $l_i_Ectos < 0 Then
-                LogInfo("Their offer is not ectos only.")
-                Tot_Tell("Ecto only please, " & $g_i_EctoPerStack & " per stack.")
+                LogInfo("Their offer is not " & $g_s_TotCurName & " only.")
+                Tot_Tell($g_s_TotCurName & " only please, " & Tot_Amount($g_i_TotPrice) & " " & Tot_PerLot() & ".")
                 Return -2
             EndIf
-            LogInfo("They offered " & $l_i_Ectos & " ecto(s).")
+            LogInfo("They offered " & Tot_Amount($l_i_Ectos) & ".")
             Return $l_i_Ectos
         EndIf
         Sleep(50)
@@ -313,11 +328,17 @@ Func Tot_WaitForOffer()
     Return -2
 EndFunc
 
+; How much of the chosen currency they offered. -1 if they offered anything else.
 Func Tot_ReadEctos()
     Local $l_i_Count = Trade_GetTradeInfo("PartnerItemCount")
+    If $g_i_TotCurModel = 0 Then
+        If $l_i_Count > 0 Then Return -1
+        Return Trade_GetTradeInfo("PartnerGold")
+    EndIf
+    If Trade_GetTradeInfo("PartnerGold") > 0 Then Return -1
     Local $l_i_Ectos = 0
     For $l_i_Slot = 0 To $l_i_Count - 1
-        If Trade_GetPartnerTradeItemsInfo($l_i_Slot, "ModelID") <> $TOT_MODEL_ECTO Then Return -1
+        If Trade_GetPartnerTradeItemsInfo($l_i_Slot, "ModelID") <> $g_i_TotCurModel Then Return -1
         $l_i_Ectos += Trade_GetPartnerTradeItemsInfo($l_i_Slot, "Quantity")
     Next
     Return $l_i_Ectos
@@ -333,13 +354,13 @@ Func Tot_OurBagStacks()
     Local $l_i_Count = Trade_GetTradeInfo("PlayerItemCount")
     If $l_i_Count < 1 Then Return 0
 
-    Local $l_i_Bags = 0
+    Local $l_i_Total = 0
     For $l_i_Slot = 0 To $l_i_Count - 1
         If Trade_GetPlayerTradeItemsInfo($l_i_Slot, "ModelID") <> $g_i_TotModel Then Return -1
-        If Trade_GetPlayerTradeItemsInfo($l_i_Slot, "Quantity") <> $TOT_STACK Then Return -1
-        $l_i_Bags += 1
+        $l_i_Total += Trade_GetPlayerTradeItemsInfo($l_i_Slot, "Quantity")
     Next
-    Return $l_i_Bags
+    If $l_i_Total < 1 Or Mod($l_i_Total, $g_i_TotLotSize) <> 0 Then Return -1
+    Return Int($l_i_Total / $g_i_TotLotSize)
 EndFunc
 
 Func Tot_OfferMatches($a_i_Price)
@@ -394,7 +415,7 @@ Func Tot_Advert()
     Local $l_i_Stock = Tot_FullStacks()
     If $l_i_Stock < 1 Then Return ; try again once we have stock
     $g_i_TotAdvert = TimerInit()
-    Chat_SendChat("WTS " & $g_s_TotAdvertName & " - " & $g_i_EctoPerStack & "e/stk, " & $l_i_Stock & " stks in stock.", "$")
+    Chat_SendChat("WTS " & $g_s_TotAdvertName & " - " & Tot_AdvertPrice() & ", " & Tot_AdvertStock($l_i_Stock) & " in stock.", "$")
 EndFunc
 
 Func Tot_SessionOpen()
@@ -407,9 +428,75 @@ Func Tot_EndSession()
     Trade_CancelTrade()
 EndFunc
 
+; How many trade units are in the inventory (full stacks when the trade size is 250).
 Func Tot_FullStacks()
-    Local $l_ai_Stacks = Tot_ListItems($g_i_TotModel, $TOT_STACK)
-    Return $l_ai_Stacks[0]
+    Local $l_ai_Items = Tot_ListItems($g_i_TotModel, 1)
+    Local $l_i_Total = 0
+    For $l_i_Idx = 1 To $l_ai_Items[0]
+        $l_i_Total += Item_GetItemInfoByItemID($l_ai_Items[$l_i_Idx], "Quantity")
+    Next
+    Return Int($l_i_Total / $g_i_TotLotSize)
+EndFunc
+
+Func Tot_ValidLotSize($a_v_Size)
+    Local $l_i_Size = Int($a_v_Size)
+    If $l_i_Size < 1 Or $l_i_Size > $TOT_STACK Then $l_i_Size = $TOT_STACK
+    Return $l_i_Size
+EndFunc
+
+Func Tot_IsFullStack()
+    Return $g_i_TotLotSize = $TOT_STACK
+EndFunc
+
+; "per stack" or "per 50"
+Func Tot_PerLot()
+    If Tot_IsFullStack() Then Return "per stack"
+    Return "per " & $g_i_TotLotSize
+EndFunc
+
+; "3e/stk", "2arm per 50" or "5k/stk"
+Func Tot_AdvertPrice()
+    Local $l_s_Price = $g_i_TotPrice & $g_s_TotCurShort
+    If $g_i_TotCurModel = 0 And $g_i_TotPrice >= 1000 And Mod($g_i_TotPrice, 1000) = 0 Then $l_s_Price = ($g_i_TotPrice / 1000) & "k"
+    If Tot_IsFullStack() Then Return $l_s_Price & "/stk"
+    Return $l_s_Price & " per " & $g_i_TotLotSize
+EndFunc
+
+; "42 stks" or "2100"
+Func Tot_AdvertStock($a_i_Lots)
+    If Tot_IsFullStack() Then Return $a_i_Lots & " stks"
+    Return $a_i_Lots * $g_i_TotLotSize
+EndFunc
+
+; Most units one trade can hold: our side is limited to 7 full stacks, and the
+; buyer's side to 7 stacks of the currency, or 100k when paying in gold.
+Func Tot_MaxLots()
+    Local $l_i_Lots = Int($TOT_MAX_TRADE_STACKS * $TOT_STACK / $g_i_TotLotSize)
+    Local $l_i_MaxPay = $TOT_MAX_TRADE_STACKS * $TOT_STACK
+    If $g_i_TotCurModel = 0 Then $l_i_MaxPay = $TOT_MAX_GOLD
+    Local $l_i_PayLots = Int($l_i_MaxPay / $g_i_TotPrice)
+    If $l_i_PayLots < $l_i_Lots Then $l_i_Lots = $l_i_PayLots
+    Return $l_i_Lots
+EndFunc
+
+; "3 Ecto", "2 Armbrace", "5,000 Gold"
+Func Tot_Amount($a_i_Amount)
+    Return Tot_Thousands($a_i_Amount) & " " & $g_s_TotCurName
+EndFunc
+
+Func Tot_Thousands($a_i_Num)
+    Local $l_s_Num = String(Int($a_i_Num))
+    Local $l_s_Out = ""
+    While StringLen($l_s_Num) > 3
+        $l_s_Out = "," & StringRight($l_s_Num, 3) & $l_s_Out
+        $l_s_Num = StringTrimRight($l_s_Num, 3)
+    WEnd
+    Return $l_s_Num & $l_s_Out
+EndFunc
+
+; "Selling 250 Trick or Treat Bag for 3 Ecto"
+Func Tot_Summary()
+    Return "Selling " & $g_i_TotLotSize & " " & $g_s_TotItemName & " for " & Tot_Amount($g_i_TotPrice)
 EndFunc
 
 Func Tot_ListItems($a_i_Model, $a_i_MinQty)
@@ -455,7 +542,11 @@ Func Tot_DoRestock()
         LogWarn("Could not read the Xunlai chest.")
     Else
         Tot_Pause()
-        Tot_StoreEctos()
+        If $g_i_TotCurModel = 0 Then
+            Item_DepositGold()
+        Else
+            Tot_StoreEctos()
+        EndIf
         If $BotRunning And Not Tot_TradeWaiting() Then Tot_WithdrawBags()
     EndIf
 
@@ -476,12 +567,12 @@ Func Tot_DoRestock()
         EndIf
     EndIf
     If Not $BotRunning Then Return False
-    LogInfo($g_s_TotItemName & " stacks in inventory: " & Tot_FullStacks())
+    LogInfo($g_s_TotItemName & " in stock: " & Tot_AdvertStock(Tot_FullStacks()) & ".")
     Return True
 EndFunc
 
 Func Tot_StoreEctos()
-    Local $l_ai_Ectos = Tot_ListItems($TOT_MODEL_ECTO, 1)
+    Local $l_ai_Ectos = Tot_ListItems($g_i_TotCurModel, 1)
     For $l_i_Idx = 1 To $l_ai_Ectos[0]
         If Not $BotRunning Or Tot_TradeWaiting() Then Return
         Local $l_i_Item = $l_ai_Ectos[$l_i_Idx]
@@ -503,7 +594,7 @@ Func Tot_StoreEctos()
             EndIf
             $l_i_Qty = Item_GetItemInfoByItemID($l_i_Item, "Quantity")
             If $l_i_Qty = $l_i_Before Then
-                LogWarn("Could not stack ectos into storage.")
+                LogWarn("Could not stack " & $g_s_TotCurName & " into storage.")
                 ExitLoop
             EndIf
         WEnd
@@ -511,13 +602,13 @@ Func Tot_StoreEctos()
         If $l_i_Qty < 1 Then ContinueLoop
         Local $l_ai_Empty = Tot_EmptySlot($g_ai_TotStorage)
         If $l_ai_Empty[0] = 0 Then
-            LogWarn("No storage space left for ectos.")
+            LogWarn("No storage space left for " & $g_s_TotCurName & ".")
             Return
         EndIf
         Item_MoveItem($l_i_Item, $l_ai_Empty[0], $l_ai_Empty[1])
         Tot_Pause()
         If Item_GetItemBySlot($l_ai_Empty[0], $l_ai_Empty[1]) = 0 Then
-            LogWarn("Could not move ectos into storage.")
+            LogWarn("Could not move " & $g_s_TotCurName & " into storage.")
             Return
         EndIf
     Next
@@ -547,9 +638,13 @@ EndFunc
 Func Tot_RecordSale($a_i_Stacks, $a_i_Ectos)
     $g_i_TotOutcome = 1
     $g_i_TotSales += 1
-    $g_i_TotEctosEarned += $a_i_Ectos
-    LogInfo("Trade completed: " & $a_i_Stacks & " stack(s) for " & $a_i_Ectos & " ecto. Total: " & $g_i_TotSales & " trade(s), " & $g_i_TotEctosEarned & " ecto.")
-    WinSetTitle($MainGui, "", $BotTitle & " - " & player_GetCharname() & " - " & $g_i_TotSales & " trades, " & $g_i_TotEctosEarned & " ecto")
+    $g_o_TotEarned.Item($g_s_TotCurName) = $g_o_TotEarned.Item($g_s_TotCurName) + $a_i_Ectos
+    Local $l_s_Earned = ""
+    For $l_s_Cur In $g_o_TotEarned.Keys
+        $l_s_Earned &= ", " & Tot_Thousands($g_o_TotEarned.Item($l_s_Cur)) & " " & $l_s_Cur
+    Next
+    LogInfo("Trade completed: " & $a_i_Stacks * $g_i_TotLotSize & " " & $g_s_TotItemName & " for " & Tot_Amount($a_i_Ectos) & ". Total: " & $g_i_TotSales & " trade(s)" & $l_s_Earned & ".")
+    WinSetTitle($MainGui, "", $BotTitle & " - " & player_GetCharname() & " - " & $g_i_TotSales & " trades" & $l_s_Earned)
 EndFunc
 
 Func Tot_RecordOutcome()
@@ -603,7 +698,7 @@ Func Tot_BestEctoSlot()
         For $l_i_TrySlot = 1 To $l_i_Slots
             Local $l_p_Item = Item_GetItemBySlot($g_ai_TotStorage[$l_i_BagIdx], $l_i_TrySlot)
             If $l_p_Item = 0 Then ContinueLoop
-            If Item_GetItemInfoByPtr($l_p_Item, "ModelID") <> $TOT_MODEL_ECTO Then ContinueLoop
+            If Item_GetItemInfoByPtr($l_p_Item, "ModelID") <> $g_i_TotCurModel Then ContinueLoop
             Local $l_i_Qty = Item_GetItemInfoByPtr($l_p_Item, "Quantity")
             If $l_i_Qty < 1 Or $l_i_Qty >= $TOT_STACK Then ContinueLoop
             Local $l_i_ThisRoom = $TOT_STACK - $l_i_Qty

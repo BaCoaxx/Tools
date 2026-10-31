@@ -20,10 +20,20 @@ Global $BotRunning = False
 Global $Bot_Core_Initialized = False
 
 ; Items the bot can sell, shown in the GUI dropdown. Add one row per item:
-; [Dropdown name, Model ID, Name used in the trade advert]
-; Every item is traded in full stacks of 250.
-Global $g_av_TotItems[][3] = [ _
-    ["Trick or Treat Bag", 28434, "ToT Bags"] _
+; [Dropdown name, Model ID, Name used in the trade advert, Default amount per trade]
+; The amount fills the "Amount per trade" box when the item is picked; you can
+; change it there (1 to 250). 250 is a full stack and adverts say "3e/stk";
+; anything else adverts as e.g. "3e per 50".
+Global $g_av_TotItems[][4] = [ _
+    ["Trick or Treat Bag", 28434, "ToT Bags", 250] _
+]
+
+; What buyers can pay with, shown in the second GUI dropdown. Add one row per currency:
+; [Dropdown name, Model ID (0 = gold), Short name used in the advert]
+Global $g_av_TotCurrencies[][3] = [ _
+    ["Ecto", 930, "e"], _
+    ["Armbrace", 21127, "arm"], _
+    ["Gold", 0, "g"] _
 ]
 
 
