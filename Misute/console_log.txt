@@ -1,0 +1,11 @@
+
+[20:07:55] [INFO] Based on GWA2
+[20:07:55] [INFO] GWA2 - Created by: GameRevision Community
+[20:07:55] [INFO] GWA2 - Build date: approximately 2007
+
+[20:07:55] [INFO] GwAu3 - Created by: Jag-Gw Community
+[20:07:55] [INFO] GwAu3 - Build date: 2025-05-21
+[20:07:55] [INFO] GwAu3 - Version: 1.0
+[20:07:55] [INFO] GwAu3 - Last Update: 2025-06-17
+
+[20:08:08] [EXIT] Script terminated. ExitCode=0
