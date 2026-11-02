@@ -581,7 +581,7 @@ EndFunc
 Func Tot_Advert()
     If Not $BotRunning Or $g_b_TotRestocking Or TimerDiff($g_i_TotAdvert) < 120000 Then Return
     If Tot_Buying() Then
-        Local $l_i_CanBuy = Tot_BuyLots()
+        Local $l_i_CanBuy = Tot_TotalBuyLots()
         If $l_i_CanBuy < 1 Then Return ; try again once we can pay and have room
         $g_i_TotAdvert = TimerInit()
         Chat_SendChat(Tot_DistrictPrefix() & "WTB " & $g_s_TotAdvertName & " - " & Tot_AdvertPrice() & ", buying up to " & Tot_AdvertStock($l_i_CanBuy) & ".", "$")
@@ -682,6 +682,33 @@ Func Tot_BuyLots()
     Return $l_i_Lots
 EndFunc
 
+; All the currency we own, carried plus stored (not capped to one trade):
+; gold on the character + gold in storage, or every stack of the currency item
+; in the bags + the Xunlai chest (the chest part reads 0 if it can't be read).
+Func Tot_TotalCurrency()
+    If $g_i_TotCurModel = 0 Then Return Item_GetInventoryInfo("GoldCharacter") + Item_GetInventoryInfo("GoldStorage")
+    Local $l_i_Total = 0
+    Local $l_av_Items = Item_GetInventoryArray()
+    For $l_i_Idx = 0 To UBound($l_av_Items) - 1
+        If $l_av_Items[$l_i_Idx][$GC_I_INVENTORY_MODELID] = $g_i_TotCurModel Then $l_i_Total += $l_av_Items[$l_i_Idx][$GC_I_INVENTORY_QUANTITY]
+    Next
+    Local $l_av_Storage = Item_GetStorageArray()
+    For $l_i_Idx = 0 To UBound($l_av_Storage) - 1
+        If $l_av_Storage[$l_i_Idx][$GC_I_INVENTORY_MODELID] = $g_i_TotCurModel Then $l_i_Total += $l_av_Storage[$l_i_Idx][$GC_I_INVENTORY_QUANTITY]
+    Next
+    Return $l_i_Total
+EndFunc
+
+; How many trade units we can buy in total across repeat trades (e.g. 400k at
+; 100k per 9 Ecto = 4, so 36 Ecto), limited by bag room. Used for the advert.
+Func Tot_TotalBuyLots()
+    If $g_i_TotPrice < 1 Then Return 0
+    Local $l_i_Lots = Int(Tot_TotalCurrency() / $g_i_TotPrice)
+    Local $l_i_Room = Int(Tot_FreeSlots() * $TOT_STACK / $g_i_TotLotSize)
+    If $l_i_Room < $l_i_Lots Then $l_i_Lots = $l_i_Room
+    Return $l_i_Lots
+EndFunc
+
 Func Tot_FreeSlots()
     Local $l_i_Free = 0
     For $l_i_Idx = 0 To UBound($g_ai_TotBags) - 1
@@ -712,10 +739,10 @@ Func Tot_AdvertPrice()
     Return $l_s_Price & " per " & $g_i_TotLotSize
 EndFunc
 
-; "42 stks" or "2100"
+; "42 stks of Ecto" or "2100 Ecto"
 Func Tot_AdvertStock($a_i_Lots)
-    If Tot_IsFullStack() Then Return $a_i_Lots & " stks"
-    Return $a_i_Lots * $g_i_TotLotSize
+    If Tot_IsFullStack() Then Return $a_i_Lots & " stks of " & $g_s_TotAdvertName
+    Return $a_i_Lots * $g_i_TotLotSize & " " & $g_s_TotAdvertName
 EndFunc
 
 ; Short tag for the district we are standing in, read fresh every advert:
@@ -920,7 +947,7 @@ Func Tot_BuyRestockDone()
         Return False
     EndIf
     If Not $BotRunning Then Return False
-    LogInfo("Can pay " & Tot_Amount(Tot_PayableCurrency()) & ", buying up to " & Tot_BuyLots() * $g_i_TotLotSize & " " & $g_s_TotItemName & ".")
+    LogInfo("Can pay " & Tot_Amount(Tot_PayableCurrency()) & ", buying up to " & Tot_TotalBuyLots() * $g_i_TotLotSize & " " & $g_s_TotItemName & " in total.")
     Return True
 EndFunc
 
