@@ -584,13 +584,13 @@ Func Tot_Advert()
         Local $l_i_CanBuy = Tot_BuyLots()
         If $l_i_CanBuy < 1 Then Return ; try again once we can pay and have room
         $g_i_TotAdvert = TimerInit()
-        Chat_SendChat("WTB " & $g_s_TotAdvertName & " - " & Tot_AdvertPrice() & ", buying up to " & Tot_AdvertStock($l_i_CanBuy) & ".", "$")
+        Chat_SendChat(Tot_DistrictPrefix() & "WTB " & $g_s_TotAdvertName & " - " & Tot_AdvertPrice() & ", buying up to " & Tot_AdvertStock($l_i_CanBuy) & ".", "$")
         Return
     EndIf
     Local $l_i_Stock = Tot_FullStacks()
     If $l_i_Stock < 1 Then Return ; try again once we have stock
     $g_i_TotAdvert = TimerInit()
-    Chat_SendChat("WTS " & $g_s_TotAdvertName & " - " & Tot_AdvertPrice() & ", " & Tot_AdvertStock($l_i_Stock) & " in stock.", "$")
+    Chat_SendChat(Tot_DistrictPrefix() & "WTS " & $g_s_TotAdvertName & " - " & Tot_AdvertPrice() & ", " & Tot_AdvertStock($l_i_Stock) & " in stock.", "$")
 EndFunc
 
 Func Tot_SessionOpen()
@@ -716,6 +716,60 @@ EndFunc
 Func Tot_AdvertStock($a_i_Lots)
     If Tot_IsFullStack() Then Return $a_i_Lots & " stks"
     Return $a_i_Lots * $g_i_TotLotSize
+EndFunc
+
+; Short tag for the district we are standing in, read fresh every advert:
+; "AED1" = American English District 1, "EED1" = Europe English District 1,
+; "EFD2" = Europe French District 2, "ID1" = International District 1, "KD1" = Korea, etc.
+; Returns "" if anything is unknown, so the advert just goes out without a tag.
+Func Tot_GetDistrictTag()
+    If Map_GetCharacterContextPtr() = 0 Then Return ""
+    Local $l_i_District = Map_GetCharacterInfo("DistrictNumber")
+    Local $l_i_Region = Map_GetCharacterInfo("Region")
+    Local $l_i_Language = Map_GetCharacterInfo("Language")
+    If Not IsNumber($l_i_District) Or $l_i_District < 1 Or $l_i_District > 99 Then Return ""
+    Local $l_s_Code = ""
+    Switch $l_i_Region
+        Case $GC_I_DISTRICT_REGION_AMERICA
+            $l_s_Code = "AE"
+        Case $GC_I_DISTRICT_REGION_EUROPE
+            Switch $l_i_Language
+                Case $GC_I_DISTRICT_LANGUAGE_ENGLISH
+                    $l_s_Code = "EE"
+                Case $GC_I_DISTRICT_LANGUAGE_FRENCH
+                    $l_s_Code = "EF"
+                Case $GC_I_DISTRICT_LANGUAGE_GERMAN
+                    $l_s_Code = "EG"
+                Case $GC_I_DISTRICT_LANGUAGE_ITALIAN
+                    $l_s_Code = "EI"
+                Case $GC_I_DISTRICT_LANGUAGE_SPANISH
+                    $l_s_Code = "ES"
+                Case $GC_I_DISTRICT_LANGUAGE_POLISH
+                    $l_s_Code = "EP"
+                Case $GC_I_DISTRICT_LANGUAGE_RUSSIAN
+                    $l_s_Code = "ER"
+                Case Else
+                    Return ""
+            EndSwitch
+        Case $GC_I_DISTRICT_REGION_INTERNATIONAL
+            $l_s_Code = "I"
+        Case $GC_I_DISTRICT_REGION_KOREA
+            $l_s_Code = "K"
+        Case $GC_I_DISTRICT_REGION_CHINA
+            $l_s_Code = "C"
+        Case $GC_I_DISTRICT_REGION_JAPAN
+            $l_s_Code = "J"
+        Case Else
+            Return ""
+    EndSwitch
+    Return $l_s_Code & "D" & $l_i_District
+EndFunc
+
+; "[AED1] " in front of the advert, or "" when the district can't be read
+Func Tot_DistrictPrefix()
+    Local $l_s_Tag = Tot_GetDistrictTag()
+    If $l_s_Tag = "" Then Return ""
+    Return "[" & $l_s_Tag & "] "
 EndFunc
 
 ; Most units one trade can hold: the item side is limited to 7 full stacks, and the
