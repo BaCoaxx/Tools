@@ -19,7 +19,7 @@ Global Const $BotTitle = "ToT Trader"
 Global $BotRunning = False
 Global $Bot_Core_Initialized = False
 
-; Items the bot can sell, shown in the GUI dropdown. Add one row per item:
+; Items the bot can sell or buy, shown in the item dropdown on both tabs. Add one row per item:
 ; [Dropdown name, Model ID, Name used in the trade advert, Default amount per trade]
 ; The amount fills the "Amount per trade" box when the item is picked; you can
 ; change it there (1 to 250). 250 is a full stack and adverts say "3e/stk";
@@ -28,13 +28,22 @@ Global $g_av_TotItems[][4] = [ _
     ["Trick or Treat Bag", 28434, "ToT Bags", 250] _
 ]
 
-; What buyers can pay with, shown in the second GUI dropdown. Add one row per currency:
+; What the trade is paid with (by the buyer on the Sell tab, by us on the Buy tab),
+; shown in the currency dropdown on both tabs. Add one row per currency:
 ; [Dropdown name, Model ID (0 = gold), Short name used in the advert]
 Global $g_av_TotCurrencies[][3] = [ _
     ["Ecto", 930, "e"], _
     ["Armbrace", 21127, "arm"], _
     ["Gold", 0, "g"] _
 ]
+
+; One instance runs one mode: the GUI tab showing when Start is pressed.
+Global Const $TOT_MODE_SELL = 0
+Global Const $TOT_MODE_BUY = 1
+Global $g_i_TotMode = $TOT_MODE_SELL
+
+; Save config / Load config default to this file, and it is loaded on startup if it exists.
+Global Const $g_s_TotConfigFile = @ScriptDir & "\Misute.ini"
 
 
 $g_bAutoStart = False  ; Flag for auto-start
@@ -76,6 +85,7 @@ LogInfo("GwAu3 - Created by: " & $GC_S_UPDATOR)
 LogInfo("GwAu3 - Build date: " & $GC_S_BUILD_DATE)
 LogInfo("GwAu3 - Version: " & $GC_S_VERSION)
 LogInfo("GwAu3 - Last Update: " & $GC_S_LAST_UPDATE & @CRLF)
+If FileExists($g_s_TotConfigFile) Then Tot_LoadConfig($g_s_TotConfigFile, True)
 Core_AutoStart()
 
 While Not $BotRunning
