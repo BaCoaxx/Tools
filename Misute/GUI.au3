@@ -44,7 +44,9 @@ GUICtrlSetOnEvent($g_hTab, "GuiButtonHandler")
 $g_ah_TabItem[$TOT_MODE_SELL] = GUICtrlCreateTabItem("Sell")
 Tot_CreateTabControls($TOT_MODE_SELL, "Item to sell", "Keep running if stock stays low")
 $g_ah_TabItem[$TOT_MODE_BUY] = GUICtrlCreateTabItem("Buy")
-Tot_CreateTabControls($TOT_MODE_BUY, "Item to buy", "Keep running if currency runs low")
+Tot_CreateTabControls($TOT_MODE_BUY, "Item to buy", "")
+; No keep running box on Buy: it keeps going while it can afford one unit and
+; pauses when it cannot.
 GUICtrlCreateTabItem("")
 
 Global $g_hSaveButton = GUICtrlCreateButton("Save config", 16, 254, 90, 25)
@@ -68,7 +70,7 @@ GUISetState(@SW_SHOW)
 ; inside the tab item that was just created. Both tabs use the same layout.
 Func Tot_CreateTabControls($a_i_Tab, $a_s_ItemText, $a_s_KeepText)
     GUICtrlCreateLabel($a_s_ItemText, 26, 118, 98, 18)
-    $g_ah_ItemCombo[$a_i_Tab] = GUICtrlCreateCombo("", 124, 114, 190, 25, BitOR($CBS_DROPDOWNLIST, $WS_VSCROLL))
+    $g_ah_ItemCombo[$a_i_Tab] = GUICtrlCreateCombo("", 124, 114, 190, 200, BitOR($CBS_DROPDOWNLIST, $WS_VSCROLL)) ; height is the open list
     GUICtrlSetOnEvent(-1, "GuiButtonHandler")
     Tot_FillCombo($g_ah_ItemCombo[$a_i_Tab], $g_av_TotItems)
 
@@ -82,11 +84,12 @@ Func Tot_CreateTabControls($a_i_Tab, $a_s_ItemText, $a_s_KeepText)
     $g_ah_PriceInput[$a_i_Tab] = GUICtrlCreateInput("1", 124, 170, 80, 22, BitOR($ES_NUMBER, $ES_RIGHT))
     GUICtrlSetLimit(-1, 6)
     GUICtrlSetOnEvent(-1, "GuiButtonHandler")
-    $g_ah_CurrencyCombo[$a_i_Tab] = GUICtrlCreateCombo("", 210, 170, 104, 25, BitOR($CBS_DROPDOWNLIST, $WS_VSCROLL))
+    $g_ah_CurrencyCombo[$a_i_Tab] = GUICtrlCreateCombo("", 210, 170, 104, 200, BitOR($CBS_DROPDOWNLIST, $WS_VSCROLL)) ; height is the open list
     GUICtrlSetOnEvent(-1, "GuiButtonHandler")
     Tot_FillCombo($g_ah_CurrencyCombo[$a_i_Tab], $g_av_TotCurrencies)
 
-    $g_ah_KeepRunning[$a_i_Tab] = GUICtrlCreateCheckbox($a_s_KeepText, 26, 198, 288, 18)
+    $g_ah_KeepRunning[$a_i_Tab] = 0
+    If $a_s_KeepText <> "" Then $g_ah_KeepRunning[$a_i_Tab] = GUICtrlCreateCheckbox($a_s_KeepText, 26, 198, 288, 18)
 
     $g_ah_Summary[$a_i_Tab] = GUICtrlCreateLabel("", 24, 222, 292, 18, $SS_CENTER)
     GUICtrlSetFont(-1, 9, $FW_BOLD)
@@ -104,6 +107,10 @@ Func GuiButtonHandler()
                 EndIf
 
                 Tot_ApplyChoices(True)
+                If $g_i_TotModel = $g_i_TotCurModel Then
+                    LogWarn("The " & Tot_ModeName() & " tab trades " & $g_s_TotItemName & " for " & $g_s_TotCurName & ". Pick a different item or currency.")
+                    Return
+                EndIf
                 Tot_UpdateTitle()
                 GUICtrlSetState($GUIToggleRendering, $GUI_ENABLE)
                 Tot_LockChoices($GUI_DISABLE)
@@ -259,9 +266,11 @@ Func Tot_SaveConfig()
         IniWrite($l_s_File, $l_s_Section, "Amount", GUICtrlRead($g_ah_AmountInput[$l_i_Tab]))
         IniWrite($l_s_File, $l_s_Section, "Price", GUICtrlRead($g_ah_PriceInput[$l_i_Tab]))
         IniWrite($l_s_File, $l_s_Section, "Currency", GUICtrlRead($g_ah_CurrencyCombo[$l_i_Tab]))
-        Local $l_i_Keep = 0
-        If GUICtrlRead($g_ah_KeepRunning[$l_i_Tab]) = $GUI_CHECKED Then $l_i_Keep = 1
-        IniWrite($l_s_File, $l_s_Section, "KeepRunning", $l_i_Keep)
+        If $g_ah_KeepRunning[$l_i_Tab] Then
+            Local $l_i_Keep = 0
+            If GUICtrlRead($g_ah_KeepRunning[$l_i_Tab]) = $GUI_CHECKED Then $l_i_Keep = 1
+            IniWrite($l_s_File, $l_s_Section, "KeepRunning", $l_i_Keep)
+        EndIf
     Next
     LogInfo("Config saved to " & $l_s_File & ".")
 EndFunc
@@ -299,10 +308,12 @@ Func Tot_LoadConfig($a_s_File = "", $a_b_Startup = False)
         GUICtrlSetData($g_ah_PriceInput[$l_i_Tab], IniRead($l_s_File, $l_s_Section, "Price", "1"))
         Local $l_i_Cur = Tot_RowIndex($g_av_TotCurrencies, IniRead($l_s_File, $l_s_Section, "Currency", ""), $l_s_Section & " currency")
         Tot_FillCombo($g_ah_CurrencyCombo[$l_i_Tab], $g_av_TotCurrencies, $l_i_Cur)
-        If IniRead($l_s_File, $l_s_Section, "KeepRunning", "0") = "1" Then
-            GUICtrlSetState($g_ah_KeepRunning[$l_i_Tab], $GUI_CHECKED)
-        Else
-            GUICtrlSetState($g_ah_KeepRunning[$l_i_Tab], $GUI_UNCHECKED)
+        If $g_ah_KeepRunning[$l_i_Tab] Then
+            If IniRead($l_s_File, $l_s_Section, "KeepRunning", "0") = "1" Then
+                GUICtrlSetState($g_ah_KeepRunning[$l_i_Tab], $GUI_CHECKED)
+            Else
+                GUICtrlSetState($g_ah_KeepRunning[$l_i_Tab], $GUI_UNCHECKED)
+            EndIf
         EndIf
     Next
 

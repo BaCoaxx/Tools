@@ -1,5 +1,13 @@
 #include-once
 
+Global Const $TOT_MAX_GOLD = 100000 ; most gold a character can hold or trade
+Global Const $TOT_STACK = 250
+Global Const $TOT_LOW_STACKS = 10
+Global Const $TOT_WAIT_MS = 60000
+Global Const $TOT_MAX_TRADE_STACKS = 7 ; trade window item slots
+Global Const $TOT_MAX_STRIKES = 3         ; failed trades in a row before a cooldown
+Global Const $TOT_COOLDOWN_MS = 300000    ; 5 minutes
+
 ; The item being sold or bought. Set from the active tab's dropdown ($g_av_TotItems in Misute.au3) on Start.
 Global $g_s_TotItemName = $g_av_TotItems[0][0]
 Global $g_i_TotModel = $g_av_TotItems[0][1]
@@ -9,13 +17,6 @@ Global $g_i_TotLotSize = Tot_ValidLotSize($g_av_TotItems[0][3]) ; how many items
 Global $g_s_TotCurName = $g_av_TotCurrencies[0][0]
 Global $g_i_TotCurModel = $g_av_TotCurrencies[0][1] ; 0 = gold
 Global $g_s_TotCurShort = $g_av_TotCurrencies[0][2]
-Global Const $TOT_MAX_GOLD = 100000 ; most gold a character can hold or trade
-Global Const $TOT_STACK = 250
-Global Const $TOT_LOW_STACKS = 10
-Global Const $TOT_WAIT_MS = 60000
-Global Const $TOT_MAX_TRADE_STACKS = 7 ; trade window item slots
-Global Const $TOT_MAX_STRIKES = 3         ; failed trades in a row before a cooldown
-Global Const $TOT_COOLDOWN_MS = 300000    ; 5 minutes
 
 Global Const $g_ai_TotBags[4] = [$GC_I_INVENTORY_BACKPACK, $GC_I_INVENTORY_BELT_POUCH, $GC_I_INVENTORY_BAG1, $GC_I_INVENTORY_BAG2]
 Global Const $g_ai_TotStorage[14] = [ _
@@ -38,10 +39,12 @@ Global $g_o_TotEarned = ObjCreate("Scripting.Dictionary") ; currency name -> amo
 Global $g_i_TotBuys = 0
 Global $g_i_TotItemsBought = 0
 Global $g_o_TotSpent = ObjCreate("Scripting.Dictionary") ; currency name -> amount paid out
-Tot_ApplyChoices() ; labels match the default picks
 Global $g_o_TotStrikes = ObjCreate("Scripting.Dictionary")
 Global $g_o_TotBlocked = ObjCreate("Scripting.Dictionary")
 Global $g_s_TotLastIgnored = ""
+
+; Every global above must exist before this runs.
+Tot_ApplyChoices() ; labels match the default picks
 
 Func Tot_Run()
     If Not StoC_WatchTrade() Then
@@ -630,7 +633,15 @@ EndFunc
 ; Sell: fewer than $TOT_LOW_STACKS units of the item. Buy: we cannot pay for a
 ; full-size trade, or there is not room for one (7 trade stacks).
 Func Tot_NeedsRestock()
-    If Tot_Buying() Then Return Tot_PayLots() < Tot_MaxLots() Or Tot_FreeSlots() < $TOT_MAX_TRADE_STACKS
+    If Tot_Buying() Then
+        ; Out of currency or short of bag space: always worth a trip to the chest
+        ; (and the restock pauses the bot if it still cannot pay for one unit).
+        If Tot_PayLots() < 1 Or Tot_FreeSlots() < $TOT_MAX_TRADE_STACKS Then Return True
+        If Tot_PayLots() >= Tot_MaxLots() Then Return False
+        ; Gold is not a bag item: only top up if there is gold in storage and room to carry it.
+        If $g_i_TotCurModel = 0 Then Return Item_GetInventoryInfo("GoldStorage") > 0 And Item_GetInventoryInfo("GoldCharacter") < $TOT_MAX_GOLD
+        Return True
+    EndIf
     Return Tot_FullStacks() < $TOT_LOW_STACKS
 EndFunc
 
@@ -695,7 +706,8 @@ EndFunc
 ; "3e/stk", "2arm per 50" or "5k/stk"
 Func Tot_AdvertPrice()
     Local $l_s_Price = $g_i_TotPrice & $g_s_TotCurShort
-    If $g_i_TotCurModel = 0 And $g_i_TotPrice >= 1000 And Mod($g_i_TotPrice, 1000) = 0 Then $l_s_Price = ($g_i_TotPrice / 1000) & "k"
+    ; Adverts only: 1,000g and up is written in plat (1p = 1,000g), e.g. 1p, 1.5p, 100p.
+    If $g_i_TotCurModel = 0 And $g_i_TotPrice >= 1000 Then $l_s_Price = Round($g_i_TotPrice / 1000, 3) & "p"
     If Tot_IsFullStack() Then Return $l_s_Price & "/stk"
     Return $l_s_Price & " per " & $g_i_TotLotSize
 EndFunc
@@ -839,8 +851,7 @@ Func Tot_DoRestock()
 EndFunc
 
 ; End of a buy-mode restock: stop if the bags are still full or we cannot pay for
-; one unit. If we can pay for some but not a full-size trade, stop unless the Buy
-; tab's keep running box is ticked.
+; one unit. Otherwise keep buying with whatever we can afford.
 Func Tot_BuyRestockDone()
     If Tot_FreeSlots() < 1 Then
         LogWarn("No bag space left for " & $g_s_TotItemName & " even after storing. Pausing.")
@@ -851,12 +862,6 @@ Func Tot_BuyRestockDone()
     ; Always pause, whatever the keep running box says.
     If Tot_PayLots() < 1 Then
         LogWarn("Out of " & $g_s_TotCurName & " - not enough left to pay for " & $g_i_TotLotSize & " " & $g_s_TotItemName & ". Pausing.")
-        $BotRunning = False
-        Return False
-    EndIf
-    ; Low but not out: carry on only if the Buy tab's keep running box is ticked.
-    If Tot_PayLots() < Tot_MaxLots() And GUICtrlRead($g_ah_KeepRunning[$TOT_MODE_BUY]) <> $GUI_CHECKED Then
-        LogWarn("Low on " & $g_s_TotCurName & " - can only pay for " & Tot_PayLots() * $g_i_TotLotSize & " " & $g_s_TotItemName & " per trade. Pausing.")
         $BotRunning = False
         Return False
     EndIf

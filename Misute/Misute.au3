@@ -25,7 +25,8 @@ Global $Bot_Core_Initialized = False
 ; change it there (1 to 250). 250 is a full stack and adverts say "3e/stk";
 ; anything else adverts as e.g. "3e per 50".
 Global $g_av_TotItems[][4] = [ _
-    ["Trick or Treat Bag", 28434, "ToT Bags", 250] _
+    ["Trick or Treat Bag", 28434, "ToT Bags", 250], _
+    ["Ecto", 930, "Ecto", 250] _
 ]
 
 ; What the trade is paid with (by the buyer on the Sell tab, by us on the Buy tab),
